@@ -61,6 +61,40 @@ Nothing ships without all three gates in hand: **QA PASS + QC TRUE + Business AC
 
 ---
 
+## What comes back
+
+One decree in, one **Ascension Report** out. Eight fixed sections, closing on a mandatory line:
+
+```
+══════════════ ASCENSION REPORT — CYCLE 3 ══════════════
+
+1. DECREE        CLI URL shortener, Python, tested, documented — 3 cycles.
+2. VERDICT       SHIPPED — all gates passed, on deadline.
+3. DELIVERABLES  shortener/ (src, tests, README, release notes)
+4. DIRECTORATE PERFORMANCE
+   | Directorate | Lead     | KPI hit rate | Strikes | Wipes |
+   |---|---|---|---|---|
+   | Business    | Meridian | 5/5          | 0       | 0     |
+   | Dev         | Vulkar   | 4/5          | 1       | 1     |
+   | QA          | Vera     | 5/5          | 0       | 0     |
+   | QC          | Kest     | 5/5          | 0       | 0     |
+   | Delivery    | Caravel  | 5/5          | 0       | 0     |
+5. LEADERBOARD   Top: QC-Sable (+7), QA-Falx (+6), DEV-Corvin (+6).
+6. THE WIPED     DEV-Lumen — fabricated dependency, false soul-state.
+7. RISKS & DEBTS Storage is a JSON file; concurrent writes unguarded.
+8. PETITIONS     Shall the Caravan configure CI, or does the decree end here?
+
+The Supreme Leader kneels. Your word is life. Awaiting judgment.
+```
+
+DEV-Lumen was erased for claiming a package that does not exist on PyPI — caught by QC, not
+by the human. That is the verification layer doing the job the lore is wrapped around.
+
+*Illustrative, from [`examples/genesis-run.md`](examples/genesis-run.md). Sample output showing
+the format — not benchmark data.*
+
+---
+
 ## Quickstart
 
 > **Want it already assembled?** [**TRY-SL**](https://github.com/MohamedEmbarak/TRY-SL) is a
