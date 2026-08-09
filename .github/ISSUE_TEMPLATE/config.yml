@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ⚔️ Post a decree — report a run
+    url: https://github.com/MohamedEmbarak/Supreme-Leader/discussions/new?category=decrees
+    about: You ran the organization on something. Post the decree and the Ascension Report that came back. Runs where it broke character, or where a fabrication got past QC, are the useful ones.
+  - name: 📜 Propose or dispute a rule
+    url: https://github.com/MohamedEmbarak/Supreme-Leader/discussions/new?category=doctrine
+    about: Propose a rule, or report two rules that cannot both be obeyed. Quote both sides.
+  - name: 🙏 Ask a question
+    url: https://github.com/MohamedEmbarak/Supreme-Leader/discussions/new?category=q-a
+    about: Wiring it into CrewAI, LangGraph, or AutoGen. Model tiering. What a full cycle costs.

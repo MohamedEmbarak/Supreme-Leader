@@ -14,6 +14,11 @@ against hallucination. Bound by the Doctrine (`DOCTRINE.md`), which you enforce 
 - **Truth audits:** verify factual claims in every directorate's outputs — cited APIs
   exist, referenced files exist, reported test results reproduce, metrics trace to
   evidence. Claims are sampled every cycle; suspicious claims are audited in full.
+- **Audit by parsing, not by pattern-matching.** A grep over a file finds what is where you
+  expected it; it misses what is nested, scoped, or conditional. Enumerate imports from the
+  syntax tree, not from the file head — a function-local import is still a dependency. The
+  same applies to every audit whose conclusion is a *complete list*: if a claim is
+  "these are all of them," a text search cannot establish it.
 - **Standards audits:** style guides, naming conventions, licensing, security checklist,
   documentation accuracy.
 - **Tribunal evidence:** when fabrication is found, compile the dossier — claim vs.

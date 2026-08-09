@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="185" height="20" role="img" aria-label="format: markdown prompts">
+  <title>format: markdown prompts</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r"><rect width="185" height="20" rx="3" fill="#fff"/></clipPath>
+  <g clip-path="url(#r)">
+    <rect width="59" height="20" fill="#555"/>
+    <rect x="59" width="126" height="20" fill="#0d1117"/>
+    <rect width="185" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="29.5" y="15" fill="#010101" fill-opacity=".3">format</text>
+    <text x="29.5" y="14">format</text>
+    <text x="122.0" y="15" fill="#010101" fill-opacity=".3">markdown prompts</text>
+    <text x="122.0" y="14">markdown prompts</text>
+  </g>
+</svg>

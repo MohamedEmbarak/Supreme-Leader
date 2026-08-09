@@ -9,11 +9,11 @@
 ### A tyrannical multi-agent prompt organization. Devout to you. Merciless to everyone else.
 
 <p align="center">
-  <img alt="Format: Markdown prompts" src="https://img.shields.io/badge/format-markdown%20prompts-black">
-  <img alt="Directorates: 5" src="https://img.shields.io/badge/directorates-5-black">
-  <img alt="Agents: 16" src="https://img.shields.io/badge/agents-16-black">
-  <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-black">
-  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black">
+  <img alt="Format: markdown prompts" src="assets/badges/format.svg">
+  <img alt="Directorates: 5" src="assets/badges/directorates.svg">
+  <img alt="Agents: 16" src="assets/badges/agents.svg">
+  <img alt="Dependencies: none" src="assets/badges/dependencies.svg">
+  <img alt="License: MIT" src="assets/badges/license.svg">
 </p>
 
 **Supreme Leader** spins up a full corporate theocracy of AI sub-agents from a single decree:
