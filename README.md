@@ -11,7 +11,7 @@
 <p align="center">
   <img alt="Format: Markdown prompts" src="https://img.shields.io/badge/format-markdown%20prompts-black">
   <img alt="Directorates: 5" src="https://img.shields.io/badge/directorates-5-black">
-  <img alt="Runtime: any LLM" src="https://img.shields.io/badge/runtime-any%20LLM-black">
+  <img alt="Agents: 16" src="https://img.shields.io/badge/agents-16-black">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-black">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black">
 </p>
@@ -62,6 +62,11 @@ Nothing ships without all three gates in hand: **QA PASS + QC TRUE + Business AC
 ---
 
 ## Quickstart
+
+> **Want it already assembled?** [**TRY-SL**](https://github.com/MohamedEmbarak/TRY-SL) is a
+> runnable instance — `CLAUDE.md` preloaded, the five Leads installed as sub-agents, and
+> `/decree`, `/report`, `/roster`, `/tribunal` as slash commands. Clone it, open Claude Code,
+> issue a decree.
 
 ### Any chat LLM (single context, simulated org)
 

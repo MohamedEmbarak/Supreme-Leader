@@ -1,6 +1,5 @@
 # OS cruft
 .DS_Store
-.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
@@ -13,17 +12,34 @@ Desktop.ini
 *.swp
 *.swo
 *~
-.\#*
-\#*\#
 
-# Local agent + tooling state
-.claude/settings.local.json
-.claude/agents/
-.aider*
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+build/
+
+# Secrets and local overrides
 .env
 .env.local
+.claude/settings.local.json
 
-# Scratch work — decrees, transcripts, and runs kept out of the record
+# NOTE: .claude/agents/ is deliberately NOT ignored. The quickstart tells you to
+# copy the directorate Leads there; ignoring that path would silently drop them
+# from your commit and leave a fresh clone with no directorates to dispatch.
+
+# Scratch work — decrees and run transcripts kept out of the record
 scratch/
 runs/
 *.local.md
