@@ -15,6 +15,7 @@ conversation is worse than one that can be ignored.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -102,7 +103,9 @@ def main():
     # one verified — the hook would be coaching the false PASS it exists to stop.
     hint = {"QC-TRUE": "<what was verified, with the commands>",
             "BIZ-ACCEPT": "<acceptance criteria met>"}
-    lines = [f'  {sys.executable} "{gate_py}" {g} "{hint[g]}"'
+    # os.fspath keeps the platform's own separators; an f-string joining Path
+    # fragments with "/" produced C:\Users\...\hooks/gate.py on Windows.
+    lines = [f'  "{sys.executable}" "{os.fspath(gate_py)}" {g} "{hint[g]}"'
              for g in required_gates(root)]
     block(
         "SHIP GATE — REFUSED\n"
