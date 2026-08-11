@@ -1,0 +1,142 @@
+name: Tests
+
+# The enforcement layer verifies other people's work. It should not ask to be
+# taken on trust itself.
+#
+# Windows is not decoration here: a real defect shipped in the ship-gate remedy
+# because Path fragments joined with "/" produced C:\Users\...\hooks/gate.py.
+# Nothing but a Windows runner would have caught it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: hooks — ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # Node and Go are optional: the suite skips those cases when the toolchain
+      # is absent. They are installed here so the multi-language parsers are
+      # actually exercised against the real runners rather than only against
+      # recorded output.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Run the suite
+        run: python -m unittest tests.test_hooks -v
+
+  mutation:
+    name: the suite must be able to fail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # A green suite proves nothing until it can go red. Each mutation below
+      # reintroduces a defect that actually shipped; if the suite still passes,
+      # the guard for that defect is decorative and the build fails.
+      - name: Reintroduce each shipped defect and require a failure
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, shutil, subprocess, sys, tempfile
+
+          MUTANTS = [
+            ("zero-collection certified as a pass",
+             "hooks/_common.py",
+             "    total, passed, skipped, out = result\n    if total == 0:",
+             "    total, passed, skipped, out = result\n    if False:",
+             "tests.test_hooks.SuiteExecution.test_zero_collection_is_never_a_pass"),
+
+            ("go counts packages, not tests",
+             "hooks/_common.py",
+             'passed = len(re.findall(r"^--- PASS: ", out, re.M))',
+             'passed = len(re.findall(r"^ok  ", out, re.M))',
+             "tests.test_hooks.Parsers.test_go_counts_tests_not_packages"),
+
+            ("node TAP read as jest",
+             "hooks/_common.py",
+             'tap_total = re.search(r"^# tests (\\d+)", out, re.M)',
+             'tap_total = None',
+             "tests.test_hooks.Parsers.test_node_tap_is_not_read_as_jest"),
+
+            ("gate remedy ignores the muster",
+             "hooks/ship-gate.py",
+             'return ["QC-TRUE"] if "SKIRMISH" in muster else ["QC-TRUE", "BIZ-ACCEPT"]',
+             'return ["QC-TRUE", "BIZ-ACCEPT"]',
+             "tests.test_hooks.ShipGate.test_remedy_instructs_only_the_gates_the_muster_fields"),
+
+            ("gates no longer bound to content",
+             "hooks/_common.py",
+             "        h.update(f.read_bytes())",
+             "        pass",
+             "tests.test_hooks.ShipGate.test_editing_deliverables_makes_a_gate_stale"),
+
+            ("QA-PASS becomes hand-recordable",
+             "hooks/gate.py",
+             'ALLOWED = {"QC-TRUE", "BIZ-ACCEPT"}',
+             'ALLOWED = {"QC-TRUE", "BIZ-ACCEPT", "QA-PASS"}',
+             "tests.test_hooks.GateCLI.test_qa_pass_cannot_be_recorded_by_hand"),
+
+            ("import check stops walking the tree",
+             "hooks/truth-lint.py",
+             "    for node in ast.walk(tree):",
+             "    for node in tree.body:",
+             "tests.test_hooks.TruthLint.test_catches_a_function_local_import"),
+
+            ("import check dies on pythons without stdlib_module_names",
+             "hooks/truth-lint.py",
+             "        if m in STDLIB:",
+             "        if m in sys.stdlib_module_names:",
+             "tests.test_hooks.TruthLint."
+             "test_import_check_survives_pythons_without_stdlib_module_names"),
+          ]
+
+          survived = []
+          for name, target, old, new, test in MUTANTS:
+              p = pathlib.Path(target)
+              original = p.read_text()
+              if old not in original:
+                  print(f"::error::mutation '{name}' no longer applies to {target} — "
+                        "the code moved and this guard is unverified")
+                  survived.append(name)
+                  continue
+              p.write_text(original.replace(old, new, 1))
+              try:
+                  r = subprocess.run([sys.executable, "-m", "unittest", test],
+                                     capture_output=True, text=True)
+              finally:
+                  p.write_text(original)
+              if r.returncode == 0:
+                  print(f"::error::mutant SURVIVED: {name} — {test} still passes")
+                  survived.append(name)
+              else:
+                  print(f"caught: {name}")
+
+          print(f"\n{len(MUTANTS) - len(survived)}/{len(MUTANTS)} mutants caught")
+          sys.exit(1 if survived else 0)
+          PY
+
+      - name: The suite must be green once the mutants are reverted
+        run: python -m unittest tests.test_hooks

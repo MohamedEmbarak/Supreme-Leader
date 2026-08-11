@@ -19,6 +19,15 @@ import sys
 from pathlib import Path
 
 
+# sys.stdlib_module_names is 3.10+. On 3.9 the attribute is simply absent, and the
+# import check raised AttributeError and died — exit 1, which Claude Code treats as a
+# hook error rather than a block. The fabricated-import guard was therefore not
+# failing loudly on 3.9; it was not running at all, while still appearing installed.
+# The set is only a fast path: find_spec() resolves stdlib modules on its own, so the
+# fallback is slower, not weaker.
+STDLIB = frozenset(getattr(sys, "stdlib_module_names", ()) or sys.builtin_module_names)
+
+
 def project_dir():
     return Path(os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd())
 

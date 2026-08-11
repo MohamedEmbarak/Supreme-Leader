@@ -21,8 +21,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import (  # noqa: E402
-    CLAIM_FAILED, CLAIM_OK, block, claimed_totals, ok, org_active, project_dir,
-    read_event, run_suite,
+    CLAIM_FAILED, CLAIM_OK, STDLIB, block, claimed_totals, ok, org_active,
+    project_dir, read_event, run_suite,
 )
 
 
@@ -44,7 +44,7 @@ def check_imports(path, root):
             mods.add(node.module.split(".")[0])
     missing = []
     for m in sorted(mods):
-        if m in sys.stdlib_module_names:
+        if m in STDLIB:
             continue
         if list(root.rglob(f"{m}.py")) or list(root.rglob(f"{m}/__init__.py")):
             continue  # local module
