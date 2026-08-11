@@ -39,7 +39,7 @@ same formats, same thresholds; only the vocabulary changes. The doctrine is regi
 
 ```
 /plugin marketplace add MohamedEmbarak/Supreme-Leader
-/plugin install supreme-leader@supreme-leader
+/plugin install supreme-leader@embarak
 ```
 
 Then, in any project:

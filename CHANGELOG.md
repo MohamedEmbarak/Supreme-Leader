@@ -4,7 +4,7 @@
 
 - Restructured as a Claude Code plugin with a self-hosted marketplace: install with
   `/plugin marketplace add MohamedEmbarak/Supreme-Leader` then
-  `/plugin install supreme-leader@supreme-leader`.
+  `/plugin install supreme-leader@embarak`.
 - **Plain register is now the default.** The lore is an optional overlay via
   `/supreme-leader:lore on`. Mechanism identical in both registers.
 - Enforcement hooks ship with the plugin: truth-lint (blocks test claims that do not
