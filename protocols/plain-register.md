@@ -5,9 +5,11 @@ scoring — is identical in both; only the vocabulary changes. Muting the lore c
 about how work is judged, and if a behavior ever differs between registers beyond vocabulary,
 that is a defect worth reporting.
 
-Default is **LORE**. To run plain, state `REGISTER: PLAIN` once at the top of the session; the
-runnable instance ([TRY-SL](https://github.com/MohamedEmbarak/TRY-SL)) ships `/mute-lore` and
-`/unmute-lore` and records the register in `ORGANIZATION.md`.
+As of v2.0, default is **PLAIN** — the lore is the overlay, enabled with
+`/supreme-leader:lore on` (or `REGISTER: LORE` in a prompt-only session). The register is
+recorded in `ORGANIZATION.md`. In the prompt-only path (pasting `DOCTRINE.md` +
+`SUPREME_LEADER.md` directly), the texts themselves are lore-register, so lore is effectively
+the default there — state `REGISTER: PLAIN` to override.
 
 ## The mapping
 

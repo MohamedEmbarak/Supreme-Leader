@@ -1,0 +1,14 @@
+{
+  "name": "supreme-leader",
+  "displayName": "Supreme Leader",
+  "version": "2.0.0",
+  "description": "A five-team agent organization with enforced verification: hooks that block unverified test claims and fabricated imports, ship gates bound to content hashes, and an evidence ledger. Plain register by default; the lore is an optional overlay.",
+  "author": {
+    "name": "Mohamed Embarak",
+    "url": "https://github.com/MohamedEmbarak"
+  },
+  "homepage": "https://github.com/MohamedEmbarak/Supreme-Leader",
+  "repository": "https://github.com/MohamedEmbarak/Supreme-Leader",
+  "license": "MIT",
+  "keywords": ["multi-agent", "orchestration", "verification", "hooks", "subagents"]
+}

@@ -1,6 +1,8 @@
 # Contributing
 
-This repo is prompts and markdown. There is nothing to build and nothing to install.
+This repo is prompts, markdown, and a small enforcement layer of Python-stdlib hooks.
+There is nothing to build; hook changes must ship with their test commands actually run
+(feed each hook a payload on stdin and check the exit code — see the hooks' docstrings).
 
 ## The one rule
 

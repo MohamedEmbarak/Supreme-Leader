@@ -1,0 +1,15 @@
+{
+  "name": "supreme-leader",
+  "description": "Marketplace for the Supreme Leader plugin: a five-team agent organization with hook-enforced verification.",
+  "owner": {
+    "name": "Mohamed Embarak",
+    "url": "https://github.com/MohamedEmbarak"
+  },
+  "plugins": [
+    {
+      "name": "supreme-leader",
+      "source": "./",
+      "description": "A five-team agent organization with enforced verification: truth-lint hooks, hash-bound ship gates, and an evidence ledger. Plain by default; lore optional."
+    }
+  ]
+}

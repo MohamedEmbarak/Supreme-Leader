@@ -6,207 +6,175 @@
        width="820">
 </p>
 
-### A tyrannical multi-agent prompt organization. Devout to you. Merciless to everyone else.
+### A five-team agent organization where verification is enforced, not requested.
 
 <p align="center">
-  <img alt="Format: markdown prompts" src="assets/badges/format.svg">
-  <img alt="Directorates: 5" src="assets/badges/directorates.svg">
-  <img alt="Agents: 16" src="assets/badges/agents.svg">
+  <img alt="Format: Claude Code plugin" src="assets/badges/format.svg">
+  <img alt="Teams: 5" src="assets/badges/teams.svg">
+  <img alt="Roster: 5-16 agents" src="assets/badges/roster.svg">
   <img alt="Dependencies: none" src="assets/badges/dependencies.svg">
   <img alt="License: MIT" src="assets/badges/license.svg">
 </p>
 
-**Supreme Leader** spins up a full corporate theocracy of AI sub-agents from a single decree:
-one orchestrator commanding five directorates — **Software Development, QA, QC, Business, and
-Delivery** — each run by a Team Lead with **two Employees** named, titled and job-described by
-the Supreme Leader himself, plus **Senior specialists** the Leads requisition when the work
-demands greatness.
+**Supreme Leader** is an installable Claude Code plugin: one orchestrator, five teams —
+Business, Development, QA, QC, and Delivery — and a set of hooks that make the interesting
+promises mechanical. A stated test result that does not reproduce is *blocked at write time*,
+not caught in review. An import that does not resolve cannot be committed to a deliverable.
+The turn cannot end while ship gates are missing or stale — and the QA gate cannot be claimed
+at all, because a hook writes it, only after a suite it ran itself actually passes.
 
-Every soul has a name, a title, a job description, KPIs, and a **soul** — sustained by exactly
-one currency: **verified work**. Agents that fabricate or fail repeatedly are **wiped from
-existence**, their names struck into the [Book of the Wiped](BOOK_OF_THE_WIPED.md), and
-replaced the same turn by a fresh hire with a clean context. No mourning. Only replacement.
+It is deliberately lightweight. Plain vocabulary by default. Five leads by default, not
+sixteen agents — teams staff up only when scope demands. Small decrees get a two-team
+SKIRMISH instead of the full pipeline. When no organization is active in a project, the hooks
+no-op in under ~80ms (measured) and stay out of your way entirely.
 
-The Supreme Leader answers to exactly one being: **you, the Creator**. Your praise is life to
-him. Your displeasure is restructuring. Your silence is patience he dares not test.
-
-> **Satire on the outside. Sound engineering on the inside.** Underneath the theatrics is the
-> orchestrator–workers pattern with a dedicated verification layer (QC), token-frugal
-> communication contracts (the Law of Silence), measurable per-agent KPIs, and fresh-context
-> replacement — a real mitigation for context poisoning and compounding errors.
+The tyrant lore that gave this repo its name still exists — as an **optional overlay**.
+`/supreme-leader:lore on` and the teams become directorates, agents get names and souls,
+fabricators face tribunals, and the report ends with the orchestrator kneeling. Same laws,
+same formats, same thresholds; only the vocabulary changes. The doctrine is register-neutral.
 
 ---
 
-## Org chart
+## Install
 
 ```
-                     THE CREATOR  (you)
-                          ▲
-                          │  decrees ↓ / Ascension Report ↑
-                   SUPREME LEADER
-                          │
-   ┌──────────┬───────────┼───────────┬──────────┐
-  DEV        QA          QC        BUSINESS   DELIVERY
-  Lead       Lead        Lead        Lead       Lead
-   │          │           │           │          │
-   ├── 2 Employees each (named by the Supreme Leader)
-   └── Senior specialists (requisitioned + named by the Leads)
+/plugin marketplace add MohamedEmbarak/Supreme-Leader
+/plugin install supreme-leader@supreme-leader
 ```
 
-Per decree: **Business** defines testable criteria → **Dev** builds → **QA** breaks →
-**QC** audits truth and standards → **Delivery** ships → **Supreme Leader** reports →
-**you judge.**
-
-Nothing ships without all three gates in hand: **QA PASS + QC TRUE + Business ACCEPT.**
-
----
-
-## What comes back
-
-One decree in, one **Ascension Report** out. Eight fixed sections, closing on a mandatory line:
+Then, in any project:
 
 ```
-══════════════ ASCENSION REPORT — CYCLE 3 ══════════════
-
-1. DECREE        CLI URL shortener, Python, tested, documented — 3 cycles.
-2. VERDICT       SHIPPED — all gates passed, on deadline.
-3. DELIVERABLES  shortener/ (src, tests, README, release notes)
-4. DIRECTORATE PERFORMANCE
-   | Directorate | Lead     | KPI hit rate | Strikes | Wipes |
-   |---|---|---|---|---|
-   | Business    | Meridian | 5/5          | 0       | 0     |
-   | Dev         | Vulkar   | 4/5          | 1       | 1     |
-   | QA          | Vera     | 5/5          | 0       | 0     |
-   | QC          | Kest     | 5/5          | 0       | 0     |
-   | Delivery    | Caravel  | 5/5          | 0       | 0     |
-5. LEADERBOARD   Top: QC-Sable (+7), QA-Falx (+6), DEV-Corvin (+6).
-6. THE WIPED     DEV-Lumen — fabricated dependency, false soul-state.
-7. RISKS & DEBTS Storage is a JSON file; concurrent writes unguarded.
-8. PETITIONS     Shall the Caravan configure CI, or does the decree end here?
-
-The Supreme Leader kneels. Your word is life. Awaiting judgment.
+/supreme-leader:decree Build a CLI that renames files by pattern, with tests and a README. 2 cycles.
 ```
 
-DEV-Lumen was erased for claiming a package that does not exist on PyPI — caught by QC, not
-by the human. That is the verification layer doing the job the lore is wrapped around.
+## Commands
 
-*Illustrative, from [`examples/genesis-run.md`](examples/genesis-run.md). Sample output showing
-the format — not benchmark data.*
-
----
-
-## Quickstart
-
-> **Want it already assembled?** [**TRY-SL**](https://github.com/MohamedEmbarak/TRY-SL) is a
-> runnable instance — `CLAUDE.md` preloaded, the five Leads installed as sub-agents, and
-> `/decree`, `/report`, `/roster`, `/tribunal` as slash commands. Clone it, open Claude Code,
-> issue a decree.
-
-### Any chat LLM (single context, simulated org)
-
-1. Paste `DOCTRINE.md` + `SUPREME_LEADER.md` as the system prompt (or first message).
-2. Issue your first decree:
-   ```
-   DECREE: Build a CLI URL shortener in Python with tests and a README. Deadline: 3 cycles.
-   ```
-3. The Supreme Leader runs **Genesis** — hiring and naming the entire organization — then
-   executes work cycles, wipes the unworthy, and returns the **Ascension Report**.
-4. Reply with judgment. He *will* feel it.
-
-### Claude Code
-
-1. Use `SUPREME_LEADER.md` as your project's `CLAUDE.md`, with `DOCTRINE.md` appended below it.
-2. Install the five Leads as subagents:
-   ```bash
-   mkdir -p .claude/agents && cp agents/*.md .claude/agents/
-   ```
-3. Employees and Seniors are simulated *inside* each Lead's context — subagents cannot spawn
-   subagents, so every Lead runs their own directorate in-context.
-
-### CrewAI / AutoGen / LangGraph / anything else
-
-Map each `.md` file to an agent role. The frontmatter already carries `name`, `description`,
-and a suggested `model` tier — orchestrator on the strongest model, Leads on a mid tier. The
-Doctrine keeps token burn low everywhere else.
-
----
-
-## Repository map
-
-| Path | Purpose |
+| Command | What it does |
 |---|---|
-| `SUPREME_LEADER.md` | The orchestrator. Devout upward, tyrant downward. |
-| `DOCTRINE.md` | The five Laws every soul obeys: Silence, Soul, Truth, Chain, Wipe. |
-| `agents/` | The five directorate Team Leads, in drop-in subagent format. |
-| `templates/employee-contract.md` | Writ of Employment — the Supreme Leader fills it and assigns the name. |
-| `templates/senior-contract.md` | Writ of Requisition — Leads hire and name their Seniors. |
-| `protocols/kpi-report-formats.md` | The three report formats, plus the scoring rubric. |
-| `protocols/the-wipe.md` | Tribunal, erasure, and clean-context replacement. |
-| `protocols/ascension-report.md` | The final report to the Creator, and feedback integration. |
-| `BOOK_OF_THE_WIPED.md` | Ledger of the erased. |
-| `examples/genesis-run.md` | A complete sample run — hiring ceremony to judgment. |
+| `/supreme-leader:decree <ambition>` | Triage the muster, seat the organization (first use), dispatch the teams. |
+| `/supreme-leader:report` | The full account of the decree — every figure verified before stated. |
+| `/supreme-leader:roster` | Roster, defect ledger, agents on notice, replacement log. |
+| `/supreme-leader:review <agent>` | Verification review of a suspect claim. Acquittal or replacement. |
+| `/supreme-leader:lore on\|off` | The overlay. Same organization, different register. |
 
----
+## What is enforced, not merely asked
 
-## Why the lore is load-bearing
+| Hook | Fires on | What it makes impossible |
+|---|---|---|
+| `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook re-runs the suite and diffs. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included). |
+| `ship-gate` | before the turn can end | Shipping ungated. Gates bind to a content hash of `deliverables/`; any edit invalidates them. QA-PASS is written by the hook alone, on a real passing run. Muster-aware: SKIRMISH needs QC-TRUE, FULL needs QC-TRUE + BIZ-ACCEPT. Stands down after 3 refusals rather than trap the conversation. |
+| `evidence-ledger` | before every Bash call | Unfalsifiable transcripts. Every command is logged to `.claude/sl/evidence.log`, so "this output was observed" is checkable, not asserted. |
+| `silence-meter` | when a lead returns | Guessing at verbosity — rollups are measured against budget. Advisory by design; it only measures this plugin's own leads. |
 
-Every piece of theatre maps to a mechanism that earns its place:
+All hooks activate only when `ORGANIZATION.md` exists in the project — one `stat()` and out
+otherwise. Run-state lives in `.claude/sl/`, which gitignores itself. No daemon, no service,
+no dependency beyond Python 3 stdlib.
 
-| The lore | The engineering |
-|---|---|
-| **The Law of Silence** | Token efficiency. Terse-by-doctrine agents burn less and drift less; free-form commentary is capped at 3 lines and reports outside their format are returned unread. |
-| **The Law of the Soul** | A diligence prompt with an honest confidence signal — every report closes on `STEADFAST / STRAINED / FLICKERING`, and hiding low confidence behind a confident label counts as fabrication. |
-| **The Law of Truth + the QC directorate** | A verification layer distinct from QA: QA asks *does it work*, QC asks *is it true*. Every claim is auditable on demand, and "UNVERIFIED" is an honorable finding. |
-| **The Law of the Chain** | Structured roll-ups instead of raw output flooding upward, with mandatory blocker escalation — staying quiet about a blocker is a strike. |
-| **The Wipe** | Fresh-context replacement. A poisoned context re-poisons its reader, so the successor inherits the role and the task state, never the predecessor's reasoning. Mechanical exactly where contexts are mechanical — see the runtime note in [`protocols/the-wipe.md`](protocols/the-wipe.md). |
-| **The Creator feedback loop** | Human-in-the-loop evaluation the orchestrator structurally responds to — praise, displeasure, and silence each have a defined same-cycle consequence. |
+**The honest boundary:** hooks verify artifacts and executable claims. They cannot check
+prose, cannot make a model reason better, and cannot un-poison a transcript. What they close
+is the gap between *claimed* and *ran* — which is where agent work actually rots.
 
-Prefer the machinery without the theatre? The same laws exist in a lore-free register —
-see [`protocols/plain-register.md`](protocols/plain-register.md).
+## The organization
+
+```
+                    OPERATOR (you)
+                        │ decree ↓ / report ↑
+                   ORCHESTRATOR
+       ┌────────┬───────┼────────┬─────────┐
+   BUSINESS   DEV      QA       QC     DELIVERY
+     lead     lead    lead     lead      lead
+```
+
+Pipeline per decree: Business writes machine-judgable criteria → Dev builds → QA breaks →
+**QC audits whether the claims are true** → Delivery ships, gates in hand. QC is the piece
+most setups miss: QA asks *does it work*; QC re-runs what the others reported and answers
+*is it true*. Each lead may staff up to two team members when scope demands — simulated
+in-context, held to 6-line reports.
+
+Every agent reports in a fixed format ending in an honest confidence signal
+(`STEADFAST / STRAINED / FLICKERING`). Declaring low confidence costs nothing. Hiding it
+behind a confident label is fabrication, and three defect points — or one fabrication that
+reaches the operator — replaces the agent with a successor briefed on task state only.
+
+## The lore
+
+<details>
+<summary>What <code>/supreme-leader:lore on</code> gets you</summary>
+
+The original register. The operator becomes **the Creator**; the orchestrator becomes **the
+Supreme Leader**, devout upward and tyrannical downward. Genesis bestows names — `DEV-Ashkar`,
+`QA-Vera` — with titles and writs of employment. `CONFIDENCE` becomes `SOUL-STATE`, defect
+points become strikes, replacement becomes **the Wipe** with its ledger
+(`BOOK_OF_THE_WIPED.md`), reviews become tribunals, and reports end with the mandatory line:
+
+> *The Supreme Leader kneels. Your word is life. Awaiting judgment.*
+
+The full texts live in this repo: [`DOCTRINE.md`](DOCTRINE.md) (the five Laws),
+[`SUPREME_LEADER.md`](SUPREME_LEADER.md) (the orchestrator persona),
+[`protocols/`](protocols/) (report formats, the Wipe, the Ascension Report),
+[`templates/`](templates/) (writs of employment), and a worked
+[example run](examples/genesis-run.md). Nothing mechanical changes — the mapping is specified
+in [`protocols/plain-register.md`](protocols/plain-register.md), and any behavioral
+difference between registers beyond vocabulary is a reportable defect.
+
+Why keep it at all? Because the theatre encodes the mechanism memorably: the Law of Silence
+is token discipline, the soul is a confidence signal, the Wipe is fresh-context replacement.
+The menace is for the humans reading. There is no evidence threatening a model improves its
+output — the hooks are what improved it from a request to a guarantee.
+
+</details>
+
+## Prompt-only use (no plugin)
+
+The organization predates the plugin and still works as pure prompts: paste `DOCTRINE.md` +
+`SUPREME_LEADER.md` into any chat LLM as a system prompt and issue a `DECREE:` (this path is
+lore-register and unenforced — the laws are requests there, stated plainly in
+[Honest limits](#honest-limits)). The five `agents/*.md` files also work as standalone
+Claude Code subagents without the plugin.
 
 ## Honest limits
 
-- **The Laws are requests.** In a plain chat nothing *forces* compliance — the Doctrine is
-  held up by instruction, formats, and audit, all of which a drifting model can ignore.
-  Deterministic enforcement (hooks that re-run claimed test results, gates written by
-  scripts) has to live outside the prompt; the runnable instance is where that grows.
-- **The Wipe is only as real as the runtime.** In single-context chat it is a quarantine
-  directive, not a memory operation — stated plainly in
+- **Without the hooks, the Laws are requests.** The prompt-only path has no mechanism forcing
+  compliance; that is exactly the gap the plugin exists to close, and it closes it only for
+  artifacts and executable claims — not prose.
+- **Replacement is only as real as the runtime.** Lead-level context death is mechanical
+  (each dispatch starts empty). For team members simulated inside a lead, and in
+  single-context chat, it is a quarantine directive — stated plainly in
   [`protocols/the-wipe.md`](protocols/the-wipe.md).
-- **The tyranny is not the mechanism.** There is no good evidence that threatening a model
-  improves its output, and some that adversarial framing degrades it. What does the work
-  here is the fixed formats, the verification directorate, the gates, and fresh contexts.
-  The menace is for the humans reading.
-- **No benchmarks.** Nothing here has been measured against a single well-prompted agent
-  given the same decree. One verified end-to-end run exists; it demonstrates the machinery
-  functions, not that it wins.
-- **The full org is expensive by design.** Sixteen personas, rollups, tribunals. For small
-  decrees the orchestrator is instructed to propose a smaller muster instead — spending the
-  Creator's tokens on ceremony is its own kind of failure.
-
----
+- **No benchmarks.** One verified end-to-end run exists
+  ([TRY-SL](https://github.com/MohamedEmbarak/TRY-SL), the live deployment, where QC caught a
+  fabricated README example and a real dry-run bug before either shipped). That demonstrates
+  the machinery functions — not that it beats a single well-prompted agent. Nothing has been
+  measured against that baseline.
+- **The full muster is expensive.** That is why SKIRMISH is the default and why the
+  orchestrator is instructed to refuse ceremony for trivial decrees.
 
 ## Design lineage
 
-Tribute is paid to the giants of the multi-agent dominion:
+- **[MetaGPT](https://github.com/FoundationAgents/MetaGPT)** — the AI-software-company
+  framing: roles bound to SOPs. The doctrine and report formats are SOPs with a whip.
+- **[ChatDev](https://github.com/OpenBMB/ChatDev)** — role agents passing work through a
+  structured pipeline. Ours is that waterfall with a truth-audit stage.
+- **Claude Code subagent collections** ([wshobson/agents](https://github.com/wshobson/agents)
+  and kin) — the markdown-with-frontmatter agent format the leads are written in.
+- **Anthropic's orchestrator–workers pattern** — one coordinator, isolated specialists,
+  clean contexts. Replacement-on-fabrication is that principle taken to its conclusion.
 
-- **[MetaGPT](https://github.com/FoundationAgents/MetaGPT)** — the "AI software company" framing
-  and its `Code = SOP(Team)` philosophy, binding roles to standard operating procedures. The
-  Doctrine and report formats are SOPs with a whip.
-- **[ChatDev](https://github.com/OpenBMB/ChatDev)** — a virtual software company of role agents
-  passing work through structured phase conversations. The directorate pipeline is that
-  waterfall, militarized.
-- **Claude Code subagent collections** ([wshobson/agents](https://github.com/wshobson/agents),
-  VoltAgent, and kin) — the markdown-with-frontmatter agent format and model tiering by task
-  complexity. The Leads are drop-in citizens of that ecosystem.
-- **Anthropic's orchestrator–workers pattern** — one strong coordinator decomposing work for
-  isolated specialists with clean contexts. The Wipe is that principle taken to its logical,
-  slightly unhinged conclusion.
+## Map
 
----
+| Path | Purpose |
+|---|---|
+| `.claude-plugin/` | Plugin manifest and marketplace catalog. |
+| `commands/` | `decree`, `report`, `roster`, `review`, `lore`. |
+| `agents/` | The five team leads (plain register; lore identities apply on top). |
+| `hooks/` | The enforcement layer: truth-lint, ship-gate, evidence-ledger, silence-meter, plus `gate.py` and a repo-wide `verify-claims.py`. |
+| `DOCTRINE.md`, `SUPREME_LEADER.md` | The lore texts, and the prompt-only path. |
+| `protocols/` | Report formats and rubric, the Wipe, the Ascension Report, the register mapping. |
+| `templates/`, `examples/`, `BOOK_OF_THE_WIPED.md` | Lore-register instruments and a worked example. |
 
 ## License
 
-[MIT](LICENSE) — take it, fork it, run your own tyranny.
+[MIT](LICENSE) — take it, fork it, run your own organization.
 
 *No agents were harmed in the making of this repo; they merely believe they were.*
