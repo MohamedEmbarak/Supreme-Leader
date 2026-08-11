@@ -10,6 +10,7 @@ Design constraints, in order:
 """
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -75,9 +76,39 @@ CLAIM_RAN = re.compile(r"\bRan\s+(\d+)\s+tests?\b")
 CLAIM_OK = re.compile(r"^\s*OK\b(?:\s*\(skipped=(\d+)\))?\s*$", re.M)
 CLAIM_FAILED = re.compile(r"^\s*FAILED\b", re.M)
 
+# Written test-count claims, per framework. Deliberately anchored to the shapes
+# real runners emit, so ordinary prose ("all 12 passed review") is not mistaken
+# for a fabricated figure. Each yields the claimed TOTAL.
+CLAIM_PATTERNS = [
+    ("unittest", re.compile(r"\bRan\s+(\d+)\s+tests?\b")),
+    ("node-tap", re.compile(r"^#\s*tests\s+(\d+)\s*$", re.M)),
+    ("jest",     re.compile(r"^\s*Tests:\s+.*?(\d+) total", re.M)),
+]
+# pytest-style summaries state components rather than a total, so they are
+# summed rather than read directly.
+CLAIM_PYTEST = re.compile(
+    r"^\s*(?=.*\b\d+ (?:passed|failed)\b)"
+    r"(?:\d+ (?:passed|failed|skipped|error[s]?|xfailed|deselected)(?:, )?)+"
+    r"(?: in [\d.]+s)?\s*$", re.M)
+CLAIM_PYTEST_PART = re.compile(r"(\d+) (passed|failed|skipped|errors?)")
 
-def find_suite(root):
-    """Dotted module names for every test file, rooted at the project dir.
+
+def claimed_totals(text):
+    """Every test-count total asserted in text, as (label, total, line_no)."""
+    out = []
+    for label, rx in CLAIM_PATTERNS:
+        for m in rx.finditer(text):
+            out.append((label, int(m.group(1)), text[:m.start()].count("\n") + 1))
+    for m in CLAIM_PYTEST.finditer(text):
+        parts = CLAIM_PYTEST_PART.findall(m.group(0))
+        total = sum(int(n) for n, kind in parts if kind != "deselected")
+        if total:
+            out.append(("pytest", total, text[:m.start()].count("\n") + 1))
+    return out
+
+
+def _python_test_modules(root):
+    """Dotted module names for every Python test file, rooted at the project dir.
 
     Not `unittest discover`: a directory without __init__.py is not importable as
     a start dir, and the resulting ImportError is indistinguishable from a failing
@@ -89,31 +120,151 @@ def find_suite(root):
         if not base.is_dir():
             continue
         for f in sorted(base.rglob("test_*.py")):
-            if "__pycache__" in f.parts or ".venv" in f.parts:
+            if {"__pycache__", ".venv", "node_modules"} & set(f.parts):
                 continue
-            rel = f.relative_to(root).with_suffix("")
-            mods.append(".".join(rel.parts))
+            mods.append(".".join(f.relative_to(root).with_suffix("").parts))
         if mods:
             break
-    return mods or None
+    return mods
+
+
+def _pytest_usable(root):
+    """pytest must be importable by *this* interpreter, and the project must ask
+    for it. A pytest binary on PATH in its own isolated environment cannot run a
+    suite that imports project modules — treating it as available is how a hook
+    reports a spurious failure."""
+    try:
+        if importlib.util.find_spec("pytest") is None:
+            return False
+    except Exception:
+        return False
+    if (root / "pytest.ini").is_file() or (root / "conftest.py").is_file():
+        return True
+    pp = root / "pyproject.toml"
+    return pp.is_file() and "[tool.pytest" in pp.read_text(errors="replace")
+
+
+def detect_suite(root):
+    """Return (kind, argv) for the project's test suite, or None.
+
+    Manifests win over file-sniffing: a repo with a package.json test script is a
+    Node project even if it also vendors a Python helper with a test file.
+    """
+    pkg = root / "package.json"
+    if pkg.is_file():
+        try:
+            scripts = (json.loads(pkg.read_text(errors="replace")).get("scripts") or {})
+        except Exception:
+            scripts = {}
+        if scripts.get("test"):
+            return ("node", ["npm", "test", "--silent"])
+
+    if (root / "go.mod").is_file():
+        return ("go", ["go", "test", "-v", "./..."])
+
+    mods = _python_test_modules(root)
+    if mods:
+        if _pytest_usable(root):
+            return ("pytest", ["python3", "-m", "pytest", "-q"])
+        return ("unittest", ["python3", "-m", "unittest", "-v", *mods])
+    return None
+
+
+# Suite-summary parsers. Each returns (total, passed, skipped) or None.
+def _parse_unittest(out):
+    m = CLAIM_RAN.search(out)
+    if not m:
+        return None
+    okm = CLAIM_OK.search(out)
+    return (int(m.group(1)), bool(okm), int(okm.group(1)) if okm and okm.group(1) else 0)
+
+
+def _parse_pytest(out):
+    passed = re.search(r"(\d+) passed", out)
+    failed = re.search(r"(\d+) (?:failed|error)", out)
+    skipped = re.search(r"(\d+) skipped", out)
+    if not (passed or failed):
+        return None
+    npass = int(passed.group(1)) if passed else 0
+    nskip = int(skipped.group(1)) if skipped else 0
+    nfail = int(failed.group(1)) if failed else 0
+    return (npass + nfail + nskip, nfail == 0, nskip)
+
+
+def _parse_node(out):
+    """node --test emits TAP; jest and vitest emit their own summary lines.
+
+    Formats verified against the real runners rather than recalled: node's TAP
+    summary is `# tests N / # pass N / # fail N / # skipped N`, which shares no
+    shape with jest's `Tests: 1 failed, 9 passed, 10 total`.
+    """
+    tap_total = re.search(r"^# tests (\d+)", out, re.M)
+    if tap_total:
+        fail = re.search(r"^# fail (\d+)", out, re.M)
+        skip = re.search(r"^# skipped (\d+)", out, re.M)
+        return (int(tap_total.group(1)),
+                int(fail.group(1)) == 0 if fail else True,
+                int(skip.group(1)) if skip else 0)
+
+    m = re.search(r"^\s*Tests:?\s+(.*)$", out, re.M)
+    if not m:
+        return None
+    line = m.group(1)
+    total = re.search(r"(\d+) total", line)
+    passed = re.search(r"(\d+) passed", line)
+    failed = re.search(r"(\d+) failed", line)
+    skipped = re.search(r"(\d+) (?:skipped|todo)", line)
+    if not (total or passed):
+        return None
+    npass = int(passed.group(1)) if passed else 0
+    nskip = int(skipped.group(1)) if skipped else 0
+    ntot = int(total.group(1)) if total else npass + nskip
+    return (ntot, failed is None, nskip)
+
+
+def _parse_go(out):
+    """Count tests, not packages.
+
+    `go test ./...` prints one `ok <pkg>` line per package, so a package with
+    twenty tests reads as one — a unit mismatch that would make every honest
+    figure in the project look wrong. With -v, each test reports its own
+    `--- PASS:` line; sub-tests are indented, so anchoring to column zero counts
+    top-level tests only.
+    """
+    passed = len(re.findall(r"^--- PASS: ", out, re.M))
+    failed = len(re.findall(r"^--- FAIL: ", out, re.M))
+    skipped = len(re.findall(r"^--- SKIP: ", out, re.M))
+    if not (passed or failed or skipped):
+        return None
+    return (passed + failed + skipped, failed == 0, skipped)
+
+
+PARSERS = {"unittest": _parse_unittest, "pytest": _parse_pytest,
+           "node": _parse_node, "go": _parse_go}
 
 
 def run_suite(root):
-    """Execute the suite. Returns (ran, ok_flag, skipped, output) or None."""
-    mods = find_suite(root)
-    if not mods:
+    """Execute the project's suite. Returns (total, ok_flag, skipped, output) or None.
+
+    The total is whatever the framework counts as a test. It is only ever compared
+    against a figure written in the same project, so the unit is consistent.
+    """
+    found = detect_suite(root)
+    if not found:
         return None
+    kind, argv = found
     try:
-        p = subprocess.run(["python3", "-m", "unittest", "-v", *mods],
-                           cwd=str(root), capture_output=True, text=True, timeout=300)
+        p = subprocess.run(argv, cwd=str(root), capture_output=True, text=True, timeout=600)
     except Exception as exc:
-        return ("ERROR", False, 0, str(exc))
+        return ("ERROR", False, 0, f"{' '.join(argv)}: {exc}")
     out = (p.stdout or "") + (p.stderr or "")
-    m = CLAIM_RAN.search(out)
-    ran = int(m.group(1)) if m else None
-    okm = CLAIM_OK.search(out)
-    skipped = int(okm.group(1)) if (okm and okm.group(1)) else 0
-    return (ran, bool(okm), skipped, out)
+    parsed = PARSERS[kind](out)
+    if parsed is None:
+        # The suite ran but its summary was unreadable. Fall back to the exit code
+        # and report no count, so nothing is blocked on a number we did not read.
+        return (None, p.returncode == 0, 0, out)
+    total, passed, skipped = parsed
+    return (total, passed, skipped, out)
 
 
 # --- gates ----------------------------------------------------------------------

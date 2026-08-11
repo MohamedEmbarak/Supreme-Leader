@@ -56,16 +56,24 @@ Then, in any project:
 | `/supreme-leader:report` | The full account of the decree — every figure verified before stated. |
 | `/supreme-leader:roster` | Roster, defect ledger, agents on notice, replacement log. |
 | `/supreme-leader:review <agent>` | Verification review of a suspect claim. Acquittal or replacement. |
+| `/supreme-leader:verify` | Audit every claim in the repository against a real run of the suite. |
 | `/supreme-leader:lore on\|off` | The overlay. Same organization, different register. |
 
 ## What is enforced, not merely asked
 
 | Hook | Fires on | What it makes impossible |
 |---|---|---|
-| `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook re-runs the suite and diffs. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included). |
+| `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook detects the project's suite (Python `unittest`/`pytest`, Node via `npm test`, Go), re-runs it, and diffs. Claims are recognised in each framework's own output format. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included). |
 | `ship-gate` | before the turn can end | Shipping ungated. Gates bind to a content hash of `deliverables/`; any edit invalidates them. QA-PASS is written by the hook alone, on a real passing run. Muster-aware: SKIRMISH needs QC-TRUE, FULL needs QC-TRUE + BIZ-ACCEPT. Stands down after 3 refusals rather than trap the conversation. |
 | `evidence-ledger` | before every Bash call | Unfalsifiable transcripts. Every command is logged to `.claude/sl/evidence.log`, so "this output was observed" is checkable, not asserted. |
 | `silence-meter` | when a lead returns | Guessing at verbosity — rollups are measured against budget. Advisory by design; it only measures this plugin's own leads. |
+
+**Suites it can verify:** Python (`unittest`, or `pytest` when the project configures it and
+it is importable), Node (`npm test` — TAP from `node --test`, jest, and vitest summaries), and
+Go (`go test -v`, counting tests rather than packages). Project manifests win over file
+sniffing, so a `package.json` with a test script makes it a Node project. If the suite runs but
+its summary cannot be read, the hook falls back to the exit code and blocks nothing on a number
+it did not actually read.
 
 All hooks activate only when `ORGANIZATION.md` exists in the project — one `stat()` and out
 otherwise. Run-state lives in `.claude/sl/`, which gitignores itself. No daemon, no service,
