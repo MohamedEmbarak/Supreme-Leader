@@ -105,6 +105,13 @@ jobs:
              "    for node in tree.body:",
              "tests.test_hooks.TruthLint.test_catches_a_function_local_import"),
 
+            ("test launcher not resolved (npm is npm.cmd on Windows)",
+             "hooks/_common.py",
+             "    exe = shutil.which(argv[0])",
+             "    exe = None",
+             "tests.test_hooks.SuiteDetection."
+             "test_launcher_is_resolved_to_a_real_executable"),
+
             ("import check dies on pythons without stdlib_module_names",
              "hooks/truth-lint.py",
              "        if m in STDLIB:",

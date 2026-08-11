@@ -267,6 +267,26 @@ class SuiteDetection(unittest.TestCase):
         with Project({"README.md": "# hi\n"}) as p:
             self.assertIsNone(_common.detect_suite(p.dir))
 
+    def test_launcher_is_resolved_to_a_real_executable(self):
+        """On Windows `npm` is `npm.cmd`, which CreateProcess will not launch from
+        a bare name. subprocess raised FileNotFoundError, run_suite reported ERROR,
+        and both hooks stand down on ERROR — so Node verification was not failing
+        on Windows, it was not running, while still reporting itself as enforcing.
+        """
+        if not have("npm"):
+            self.skipTest("npm not installed")
+        argv = _common.resolve_argv(["npm", "test", "--silent"])
+        launcher = argv[0]
+        self.assertTrue(os.path.isabs(launcher), f"argv[0] not resolved: {launcher}")
+        self.assertTrue(os.path.exists(launcher), f"resolved to nothing: {launcher}")
+        self.assertEqual(argv[-2:], ["test", "--silent"], "arguments must survive")
+        if os.name == "nt":
+            self.assertIn("/c", argv, "a .cmd target has to go through cmd.exe")
+
+    def test_resolution_leaves_a_missing_tool_to_fail_honestly(self):
+        argv = _common.resolve_argv(["definitely-not-a-real-tool-xyz", "-v"])
+        self.assertEqual(argv, ["definitely-not-a-real-tool-xyz", "-v"])
+
     def test_pycache_is_not_a_test_module(self):
         with Project({"deliverables/test_x.py": PASSING_SUITE,
                       "deliverables/__pycache__/test_stale.py": "junk"}) as p:

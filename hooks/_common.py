@@ -14,6 +14,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -259,6 +260,28 @@ def _pytest_importable():
         return False
 
 
+def resolve_argv(argv):
+    """Resolve argv[0] to a real executable path before launching it.
+
+    On Windows `npm` is `npm.cmd`, and CreateProcess will not launch a batch file
+    from a bare name — subprocess raises FileNotFoundError. run_suite reported that
+    as ERROR, and both hooks treat ERROR as "could not check" and stand down. So on
+    Windows, Node test verification was not failing; it was not happening, while the
+    plugin still reported itself as enforcing. Found by running the suite on a
+    Windows runner, which is the only place it is visible.
+
+    shutil.which() honours PATHEXT and finds the .cmd; a batch target then has to go
+    through cmd.exe, which CreateProcess will not do implicitly. On POSIX this just
+    yields an absolute path.
+    """
+    exe = shutil.which(argv[0])
+    if exe is None:
+        return argv  # let subprocess raise, and be reported honestly as ERROR
+    if os.name == "nt" and exe.lower().endswith((".cmd", ".bat")):
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/c", exe, *argv[1:]]
+    return [exe, *argv[1:]]
+
+
 def run_suite(root):
     """Execute the project's suite. Returns (total, ok_flag, skipped, output) or None.
 
@@ -280,7 +303,7 @@ def run_suite(root):
 
     def _run(kind, argv):
         try:
-            p = subprocess.run(argv, cwd=str(root), capture_output=True,
+            p = subprocess.run(resolve_argv(argv), cwd=str(root), capture_output=True,
                                text=True, timeout=600)
         except Exception as exc:
             return ("ERROR", False, 0, f"{' '.join(argv)}: {exc}")
