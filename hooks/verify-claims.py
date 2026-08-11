@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import CLAIM_FAILED, CLAIM_OK, CLAIM_RAN, project_dir, run_suite  # noqa: E402
+from _common import CLAIM_FAILED, CLAIM_OK, claimed_totals, project_dir, run_suite  # noqa: E402
 
 # Declared at file top (whole file) or at end of a line (that line only).
 HISTORICAL = re.compile(r"truth-lint:\s*historical", re.I)
@@ -59,16 +59,14 @@ def main():
             continue
 
         seen = set()
-        for m in CLAIM_RAN.finditer(text):
-            claimed = int(m.group(1))
-            line = text[:m.start()].count("\n") + 1
-            if claimed == ran or (line, claimed) in seen:
+        for label, claimed, line in claimed_totals(text):
+            if ran is None or claimed == ran or (line, claimed) in seen:
                 continue
             if HISTORICAL.search(lines[line - 1] if line <= len(lines) else ""):
                 exempted += 1
                 continue
             seen.add((line, claimed))
-            failures.append(f"{rel}:{line}: claims 'Ran {claimed} tests', actual is {ran}")
+            failures.append(f"{rel}:{line}: claims {claimed} tests ({label}), actual is {ran}")
 
         if CLAIM_OK.search(text) and not passed:
             failures.append(f"{rel}: claims the suite passes; it does not")
