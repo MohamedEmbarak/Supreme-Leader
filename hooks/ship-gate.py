@@ -61,7 +61,13 @@ def main():
     if suite and suite[0] != "ERROR":
         ran, passed, skipped, _ = suite
         if passed:
-            write_gate(root, "QA-PASS", digest, f"hook-verified: Ran {ran}, skipped {skipped}")
+            # Name the interpreter: on Windows `python` and `python3` can be
+            # different installs, and a gate certified under one while the team
+            # works under the other is a silent mismatch. QC caught exactly this
+            # by checking both before re-running.
+            interp = f"{Path(sys.executable).name} {sys.version_info.major}.{sys.version_info.minor}"
+            write_gate(root, "QA-PASS", digest,
+                       f"hook-verified: Ran {ran}, skipped {skipped} (via {interp})")
         else:
             empty = (ran == 0)
             why = ("The suite COLLECTED ZERO TESTS. Test files exist but the runner "

@@ -65,7 +65,7 @@ Then, in any project:
 |---|---|---|
 | `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook detects the project's suite (Python `unittest`/`pytest`, Node via `npm test`, Go), re-runs it, and diffs. Claims are recognised in each framework's own output format. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included). |
 | `ship-gate` | before the turn can end | Shipping ungated. Gates bind to a content hash of `deliverables/`; any edit invalidates them. QA-PASS is written by the hook alone, on a real passing run. Muster-aware: SKIRMISH needs QC-TRUE, FULL needs QC-TRUE + BIZ-ACCEPT. Stands down after 3 refusals rather than trap the conversation. |
-| `evidence-ledger` | before every Bash call | Unfalsifiable transcripts. Every command is logged to `.claude/sl/evidence.log`, so "this output was observed" is checkable, not asserted. |
+| `evidence-ledger` | before every Bash call | Transcripts with nothing behind them. Every command is logged to `.claude/sl/evidence.log`, so an "observed output" block with no matching entry is hand-written by definition. It records **commands, not their output** — it cannot catch a real command whose output was then misquoted. `truth-lint` covers that case for test figures; for other measured numbers, only an independent re-run does. |
 | `silence-meter` | when a lead returns | Guessing at verbosity — rollups are measured against budget. Advisory by design; it only measures this plugin's own leads. |
 
 **Suites it can verify:** Python (`unittest`, or `pytest` when the project configures it and
