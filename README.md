@@ -158,8 +158,31 @@ Every piece of theatre maps to a mechanism that earns its place:
 | **The Law of the Soul** | A diligence prompt with an honest confidence signal — every report closes on `STEADFAST / STRAINED / FLICKERING`, and hiding low confidence behind a confident label counts as fabrication. |
 | **The Law of Truth + the QC directorate** | A verification layer distinct from QA: QA asks *does it work*, QC asks *is it true*. Every claim is auditable on demand, and "UNVERIFIED" is an honorable finding. |
 | **The Law of the Chain** | Structured roll-ups instead of raw output flooding upward, with mandatory blocker escalation — staying quiet about a blocker is a strike. |
-| **The Wipe** | Fresh-context replacement. A poisoned context re-poisons its reader, so the successor inherits the role and the task state, never the predecessor's reasoning. |
+| **The Wipe** | Fresh-context replacement. A poisoned context re-poisons its reader, so the successor inherits the role and the task state, never the predecessor's reasoning. Mechanical exactly where contexts are mechanical — see the runtime note in [`protocols/the-wipe.md`](protocols/the-wipe.md). |
 | **The Creator feedback loop** | Human-in-the-loop evaluation the orchestrator structurally responds to — praise, displeasure, and silence each have a defined same-cycle consequence. |
+
+Prefer the machinery without the theatre? The same laws exist in a lore-free register —
+see [`protocols/plain-register.md`](protocols/plain-register.md).
+
+## Honest limits
+
+- **The Laws are requests.** In a plain chat nothing *forces* compliance — the Doctrine is
+  held up by instruction, formats, and audit, all of which a drifting model can ignore.
+  Deterministic enforcement (hooks that re-run claimed test results, gates written by
+  scripts) has to live outside the prompt; the runnable instance is where that grows.
+- **The Wipe is only as real as the runtime.** In single-context chat it is a quarantine
+  directive, not a memory operation — stated plainly in
+  [`protocols/the-wipe.md`](protocols/the-wipe.md).
+- **The tyranny is not the mechanism.** There is no good evidence that threatening a model
+  improves its output, and some that adversarial framing degrades it. What does the work
+  here is the fixed formats, the verification directorate, the gates, and fresh contexts.
+  The menace is for the humans reading.
+- **No benchmarks.** Nothing here has been measured against a single well-prompted agent
+  given the same decree. One verified end-to-end run exists; it demonstrates the machinery
+  functions, not that it wins.
+- **The full org is expensive by design.** Sixteen personas, rollups, tribunals. For small
+  decrees the orchestrator is instructed to propose a smaller muster instead — spending the
+  Creator's tokens on ceremony is its own kind of failure.
 
 ---
 
