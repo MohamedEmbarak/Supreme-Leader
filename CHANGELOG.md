@@ -28,9 +28,20 @@ instructs only what is required. An unset muster still resolves to FULL, erring 
 historical figures can be exempted with a `truth-lint: historical` marker, which stays
 greppable so exemptions remain visible rather than silent.
 
+**The import guard ran on Python 3.10+ only.** `sys.stdlib_module_names` does not exist on
+3.9, so the check raised `AttributeError` and exited 1 — which Claude Code treats as a hook
+error, not a block. On that interpreter the fabricated-import guard was not failing loudly,
+it was not running at all, while still appearing installed. Same shape as the zero-test gate.
+Found by writing the test suite below.
+
 **Corrected in `README.md`:** the evidence ledger was described as making observed output
 checkable. It records the commands that ran, not their output. The QA-PASS note now also
 names the interpreter that certified the run.
+
+**The enforcement layer is now itself tested.** 83 tests over the four hooks and the gate
+CLI, stdlib-only, run on Linux, Windows and macOS. A second CI job reintroduces each of the
+eight defects listed here and requires the corresponding test to fail — a guard whose mutant
+survives is decorative, and a green suite proves nothing until it can go red.
 
 ## 2.0.0 — the installable organization
 
