@@ -38,9 +38,16 @@ Found by writing the test suite below.
 checkable. It records the commands that ran, not their output. The QA-PASS note now also
 names the interpreter that certified the run.
 
-**The enforcement layer is now itself tested.** 83 tests over the four hooks and the gate
+**Node verification never ran on Windows.** `detect_suite` returns `npm test`; on Windows
+`npm` is `npm.cmd`, and `CreateProcess` will not launch a batch file from a bare name.
+`subprocess` raised `FileNotFoundError`, the runner reported `ERROR`, and both hooks stand
+down on `ERROR`. It failed safe — no gate was written, no false figure cleared — but the
+guard was silently absent. `argv[0]` is now resolved through `shutil.which`, with batch
+targets sent via `COMSPEC`. Found by the Windows CI leg below, the only place it is visible.
+
+**The enforcement layer is now itself tested.** 85 tests over the four hooks and the gate
 CLI, stdlib-only, run on Linux, Windows and macOS. A second CI job reintroduces each of the
-eight defects listed here and requires the corresponding test to fail — a guard whose mutant
+nine defects listed here and requires the corresponding test to fail — a guard whose mutant
 survives is decorative, and a green suite proves nothing until it can go red.
 
 ## 2.0.0 — the installable organization
