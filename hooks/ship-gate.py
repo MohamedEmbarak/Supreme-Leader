@@ -62,14 +62,21 @@ def main():
         if passed:
             write_gate(root, "QA-PASS", digest, f"hook-verified: Ran {ran}, skipped {skipped}")
         else:
+            empty = (ran == 0)
+            why = ("The suite COLLECTED ZERO TESTS. Test files exist but the runner "
+                   "matched none of them — for example pytest-style bare functions "
+                   "under `unittest`, which only collects TestCase subclasses. Nothing "
+                   "was executed, so nothing is certified. Make the suite discoverable "
+                   "by the runner, or configure the runner it is written for."
+                   if empty else
+                   "The test suite does not pass.")
             if attempts(root, digest) >= MAX_BLOCKS:
-                ok(f"ADVISORY: the suite does not pass and this gate has already refused "
-                   f"{MAX_BLOCKS} times. Standing down — but nothing here is shippable.",
-                   "Stop")
+                ok(f"ADVISORY: {why} This gate has already refused {MAX_BLOCKS} times. "
+                   "Standing down — but nothing here is shippable.", "Stop")
             attempts(root, digest, bump=True)
-            block("SHIP GATE — QA PASS DENIED\n"
-                  "The test suite does not pass. This hook writes the QA gate itself and "
-                  "will not write it for a failing suite. Fix the failures, then stop.")
+            block("SHIP GATE — QA PASS DENIED\n" + why + "\n"
+                  "This hook writes the QA gate itself and will not write it for a suite "
+                  "that did not run and pass.")
 
     missing = []
     for name in required_gates(root):

@@ -165,8 +165,8 @@ def detect_suite(root):
     mods = _python_test_modules(root)
     if mods:
         if _pytest_usable(root):
-            return ("pytest", ["python3", "-m", "pytest", "-q"])
-        return ("unittest", ["python3", "-m", "unittest", "-v", *mods])
+            return ("pytest", [sys.executable, "-m", "pytest", "-q"])
+        return ("unittest", [sys.executable, "-m", "unittest", "-v", *mods])
     return None
 
 
@@ -243,28 +243,61 @@ PARSERS = {"unittest": _parse_unittest, "pytest": _parse_pytest,
            "node": _parse_node, "go": _parse_go}
 
 
+def _pytest_importable():
+    try:
+        return importlib.util.find_spec("pytest") is not None
+    except Exception:
+        return False
+
+
 def run_suite(root):
     """Execute the project's suite. Returns (total, ok_flag, skipped, output) or None.
 
-    The total is whatever the framework counts as a test. It is only ever compared
-    against a figure written in the same project, so the unit is consistent.
+    A run that collected **zero tests is never a pass.** `python3 -m unittest` prints
+    a cheerful `Ran 0 tests / OK` when it collects nothing — which is exactly what
+    happens to pytest-style bare functions, since unittest only finds TestCase
+    subclasses. Reading that as success let the ship gate certify a suite that
+    executed nothing: the guarantee attesting to its own emptiness. Found in the
+    first human-driven run, by the orchestrator, before any human noticed.
+
+    So: if unittest collects nothing and pytest is importable, retry under pytest
+    before concluding anything. If the total is still zero, the result is NOT ok,
+    and callers are told collection failed rather than that the suite passed.
     """
     found = detect_suite(root)
     if not found:
         return None
     kind, argv = found
-    try:
-        p = subprocess.run(argv, cwd=str(root), capture_output=True, text=True, timeout=600)
-    except Exception as exc:
-        return ("ERROR", False, 0, f"{' '.join(argv)}: {exc}")
-    out = (p.stdout or "") + (p.stderr or "")
-    parsed = PARSERS[kind](out)
-    if parsed is None:
-        # The suite ran but its summary was unreadable. Fall back to the exit code
-        # and report no count, so nothing is blocked on a number we did not read.
-        return (None, p.returncode == 0, 0, out)
-    total, passed, skipped = parsed
-    return (total, passed, skipped, out)
+
+    def _run(kind, argv):
+        try:
+            p = subprocess.run(argv, cwd=str(root), capture_output=True,
+                               text=True, timeout=600)
+        except Exception as exc:
+            return ("ERROR", False, 0, f"{' '.join(argv)}: {exc}")
+        out = (p.stdout or "") + (p.stderr or "")
+        parsed = PARSERS[kind](out)
+        if parsed is None:
+            return (None, p.returncode == 0, 0, out)
+        total, passed, skipped = parsed
+        return (total, passed, skipped, out)
+
+    result = _run(kind, argv)
+
+    # Zero collected under unittest is usually pytest-style tests, not an empty
+    # project — a project with no test files at all never reaches here.
+    if kind == "unittest" and result[0] == 0 and _pytest_importable():
+        retry = _run("pytest", [sys.executable, "-m", "pytest", "-q"])
+        if retry[0] not in (0, None, "ERROR"):
+            return retry
+
+    total, passed, skipped, out = result
+    if total == 0:
+        return (0, False, 0,
+                out + "\n\nCOLLECTED ZERO TESTS. Test files exist but the runner "
+                "matched none of them, so nothing was verified. A suite that "
+                "executed nothing cannot certify anything.")
+    return result
 
 
 # --- gates ----------------------------------------------------------------------
