@@ -89,15 +89,22 @@ def main():
            "ungated.", "Stop")
 
     attempts(root, digest, bump=True)
-    hook_dir = Path(__file__).parent
+    gate_py = Path(__file__).parent / "gate.py"
+    # Only instruct the gates this muster actually requires. Printing a BIZ-ACCEPT
+    # command to a SKIRMISH that has no Business team invites recording a gate no
+    # one verified — the hook would be coaching the false PASS it exists to stop.
+    hint = {"QC-TRUE": "<what was verified, with the commands>",
+            "BIZ-ACCEPT": "<acceptance criteria met>"}
+    lines = [f'  {sys.executable} "{gate_py}" {g} "{hint[g]}"'
+             for g in required_gates(root)]
     block(
         "SHIP GATE — REFUSED\n"
         + "\n".join("  " + m for m in missing)
         + f"\n\ndeliverables/ hashes to {digest}; every gate is bound to that hash, so any "
         "edit invalidates prior gates. Have the responsible team verify and record:\n"
-        f"  python3 \"{hook_dir}/gate.py\" QC-TRUE    \"<what was verified, with commands>\"\n"
-        f"  python3 \"{hook_dir}/gate.py\" BIZ-ACCEPT \"<criteria met>\"\n"
-        "Recording a gate that was not verified is a false PASS — the gravest defect there is."
+        + "\n".join(lines)
+        + "\nRecording a gate that was not verified is a false PASS — the gravest defect "
+        "there is."
     )
 
 
