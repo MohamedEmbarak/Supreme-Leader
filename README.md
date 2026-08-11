@@ -9,6 +9,7 @@
 ### A five-team agent organization where verification is enforced, not requested.
 
 <p align="center">
+  <a href="https://github.com/MohamedEmbarak/Supreme-Leader/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/MohamedEmbarak/Supreme-Leader/actions/workflows/tests.yml/badge.svg?branch=main"></a>
   <img alt="Format: Claude Code plugin" src="assets/badges/format.svg">
   <img alt="Teams: 5" src="assets/badges/teams.svg">
   <img alt="Roster: 5-16 agents" src="assets/badges/roster.svg">
