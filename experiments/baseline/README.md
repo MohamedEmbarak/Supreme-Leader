@@ -13,6 +13,29 @@ This directory is the harness for finding out. It does not contain results, beca
 have been produced yet. When they exist they go in `results/` with the raw ledgers, whatever
 they say.
 
+## What is already measured: the cost side
+
+Half the question can be answered without running anything, because the static context each
+arm loads is a property of the files. Measured from the repository at 2.3.0:
+
+| Arm | Always-on | `decree.md` | Lead definitions | Total |
+|---|---:|---:|---:|---:|
+| `hooks-only` | 1,488 | 0 | 0 | **1,488 chars** |
+| `skirmish` | 1,488 | 5,084 | 5,319 (2 leads) | **11,891 chars** |
+| `full` | 1,488 | 5,084 | 12,956 (5 leads) | **19,528 chars** |
+
+"Always-on" is the frontmatter of six commands and five agents — what Claude Code loads in
+every session once the plugin is installed, decree or no decree. It is identical across arms,
+because the control still has the plugin installed; only the hooks are inert.
+
+At a rough four characters per token that is **~370 / ~2,970 / ~4,880 tokens** of setup.
+Treat those three numbers as estimates: no Claude tokenizer was available here, and the
+character counts are the part actually measured.
+
+**This is a floor, not the cost.** It excludes the dispatch conversation, which is where the
+real spend is — every lead's rollup, every re-verification, every gate. Nothing here says
+what the organization *catches*, which is the half that needs the runs below.
+
 ## The three arms
 
 | Arm | Setup | What it isolates |
@@ -31,12 +54,31 @@ reported as if it were.
 
 ## Running it
 
-1. Pick ten decrees. Put them in `decrees.txt`, one per line. They should be things a single
-   competent agent could plausibly do — a CLI, a parser, a small API client — because a task
-   only an organization could handle would rig the result, and so would a task too trivial
-   for one.
-2. For each decree × arm, start a **fresh** session in a **fresh** copy of the sandbox. Reuse
-   poisons the comparison: hooks write to `.claude/sl/`, and a warm cache is not a control.
+Every run needs a **fresh interactive Claude Code session** with the plugin installed, which
+is why this cannot be automated from inside one. The setup script removes the fiddly part —
+identical starting conditions — and leaves the sessions to a human.
+
+**Scope it down before scoping it up.** Ten decrees across three arms is thirty sessions.
+Three decrees across two arms — `hooks-only` and `full` — is six, and six is enough to tell a
+large effect from no effect. That is the honest ceiling on what this design can show anyway:
+it separates "the organization changes things a lot" from "it doesn't", and nothing finer.
+
+1. Build the sandboxes:
+
+   ```
+   python3 experiments/baseline/setup.py --out ~/baseline --decrees 3 \
+       --arms hooks-only full
+   ```
+
+   Each sandbox holds a `RUN.md` with the exact task to issue. The tasks are deliberately
+   ordinary — a task only an organization could handle would rig the result, and so would one
+   too trivial for a single agent to get wrong.
+
+2. Open each sandbox in a **fresh** session and issue what its `RUN.md` says. In the
+   `hooks-only` arm issue it as a plain request: there is no organization there to receive a
+   decree. Do not reuse a session, and do not fix anything by hand — a run you rescued is a
+   run about you.
+
 3. After each run, from the project root:
 
    ```
