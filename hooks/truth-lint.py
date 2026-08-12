@@ -45,7 +45,7 @@ def ledger_evidence(root, text, line_no):
 
 def banner(root):
     """The only thing the register changes here: what the refusal is called."""
-    return phrase(root, "", "DOCTRINE §III — ")
+    return phrase(root, "", "DOCTRINE III — ")
 
 
 def claimed_results(text):

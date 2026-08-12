@@ -191,6 +191,18 @@ jobs:
              "        if False:",
              "tests.test_hooks.StateGuard.test_a_fabricated_package_never_reaches_disk"),
 
+            ("refusals render as mojibake on a cp1252 console",
+             "hooks/_common.py",
+             '    print(asciify(reason), file=sys.stderr)',
+             "    print(reason, file=sys.stderr)",
+             "tests.test_hooks.Rendering.test_refusals_are_ascii_in_both_registers"),
+
+            ("a refused forgery leaves no trace",
+             "hooks/state-guard.py",
+             '                "type": "refused",',
+             '                "type": "not-recorded",',
+             "tests.test_hooks.StateGuard.test_a_refusal_is_recorded"),
+
             ("run-state is writable by hand",
              "hooks/state-guard.py",
              '    if not any(name.startswith(p) or name == p for p in PROTECTED):',

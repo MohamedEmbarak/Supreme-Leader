@@ -1322,6 +1322,19 @@ class StateGuard(unittest.TestCase):
             self.assertEqual(p.hook("state-guard.py", self.write_event(
                 p.dir / "deliverables" / "a.py", "def broken(:\n"))[0], 0)
 
+    def test_a_refusal_is_recorded(self):
+        """A refusal used to leave nothing behind. An attempt to forge a gate is
+        the single most interesting event this plugin can observe, and it was the
+        one thing that vanished when the write was prevented."""
+        with Project({}) as p:
+            p.hook("state-guard.py",
+                   self.event(p.dir / ".claude" / "sl" / "gate-QA-PASS.json"))
+            log = (p.dir / ".claude" / "sl" / "evidence.log").read_text()
+            rec = json.loads(log.splitlines()[0])
+            self.assertEqual(rec["type"], "refused")
+            self.assertEqual(rec["kind"], "run-state-write")
+            self.assertIn("gate-QA-PASS", rec["target"])
+
     def test_ordinary_project_files_are_untouched(self):
         with Project({}) as p:
             for rel in ("deliverables/app.py", "README.md", ".claude/settings.json"):
@@ -1343,6 +1356,47 @@ class StateGuard(unittest.TestCase):
 
 
 # --- resilience -----------------------------------------------------------------
+
+class Rendering(unittest.TestCase):
+    """A refusal that renders as mojibake is a refusal that gets misread.
+
+    The hooks wrote UTF-8 em dashes; a cp1252 Windows console decoded them as
+    U+FFFD, so every refusal all day arrived with a black diamond in the line
+    that says what was refused and why. Prose can have nice dashes. Diagnostics
+    that must survive an unknown terminal cannot.
+    """
+
+    def assert_ascii(self, text, label):
+        bad = [c for c in text if ord(c) > 127]
+        self.assertEqual(bad, [], f"{label} carries non-ASCII: {bad!r}")
+
+    def test_refusals_are_ascii_in_both_registers(self):
+        for reg in ("PLAIN", "LORE"):
+            with self.subTest(register=reg):
+                with Project({"deliverables/test_x.py": PASSING_SUITE},
+                             register=reg) as p:
+                    notes = p.write("NOTES.md", "Ran 47 tests\n\nOK\n")
+                    err = p.hook("truth-lint.py",
+                                 {"tool_input": {"file_path": str(notes)}})[2]
+                    self.assertIn("BLOCKED", err)
+                    self.assert_ascii(err, f"{reg} refusal")
+
+    def test_the_state_guard_refusal_is_ascii(self):
+        with Project({}, register="LORE") as p:
+            err = p.hook("state-guard.py", {"tool_input": {
+                "file_path": str(p.dir / ".claude" / "sl" / "gate-QA-PASS.json")}})[2]
+            self.assert_ascii(err, "state-guard refusal")
+
+    def test_advisories_are_ascii(self):
+        with Project({}) as p:
+            out = p.hook("silence-meter.py", {
+                "agent_type": "qa-lead",
+                "last_assistant_message": "\n".join(f"l{i}" for i in range(200))})[1]
+            self.assert_ascii(out, "silence-meter advisory")
+
+    def test_typography_is_transliterated_not_stripped(self):
+        self.assertEqual(_common.asciify("a — b … c ≤ d"), "a -- b ... c <= d")
+
 
 class Resilience(unittest.TestCase):
     """A hook that crashes on malformed input blocks the user's turn for no reason."""

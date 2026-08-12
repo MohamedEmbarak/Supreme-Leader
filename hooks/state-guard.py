@@ -18,14 +18,40 @@ hook cannot reliably tell which files an arbitrary command will touch. The ledge
 records the attempt, which is the honest half of the answer.
 """
 
+import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import (  # noqa: E402
     JS_EXTENSIONS, block, ok, org_active, phrase, project_dir, read_event,
-    unresolved_js_imports, unresolved_py_imports,
+    state_dir, unresolved_js_imports, unresolved_py_imports,
 )
+
+
+def refuse(root, kind, target, reason):
+    """Record the attempt, then block.
+
+    A refusal used to leave nothing behind: the write was prevented and the fact
+    that anyone tried was not written down anywhere. An attempt to forge a gate is
+    the single most interesting event this plugin can observe — the one thing an
+    operator would want to find later — and it was the one thing that vanished.
+    Refusals now land in the same ledger as commands, so the record of a blocked
+    fabrication outlives the turn that attempted it.
+    """
+    try:
+        with (state_dir(root) / "evidence.log").open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({
+                "type": "refused",
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "kind": kind,
+                "target": str(target),
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass  # never let bookkeeping stop the refusal itself
+    block(reason)
+
 
 PROTECTED = ("gate-", "evidence.log", "verbosity.log", "attempts.json")
 
@@ -45,25 +71,27 @@ def check_content(root, path, content):
     """
     if "deliverables" not in path.parts:
         return
-    banner = phrase(root, "", "DOCTRINE §III — ")
+    banner = phrase(root, "", "DOCTRINE III — ")
     if path.suffix == ".py":
         try:
             missing = unresolved_py_imports(content, root)
         except SyntaxError:
             return  # let the post-write check report the syntax error properly
         if missing:
-            block(f"{banner}FABRICATED IMPORT REFUSED before writing {path.name}\n"
-                  f"These imports do not resolve here: {', '.join(missing)}\n"
-                  f"Nothing was written. Install the dependency and prove it imports, "
-                  f"or use the standard library.")
+            refuse(root, "fabricated-import", path,
+                   f"{banner}FABRICATED IMPORT REFUSED before writing {path.name}\n"
+                   f"These imports do not resolve here: {', '.join(missing)}\n"
+                   f"Nothing was written. Install the dependency and prove it imports, "
+                   f"or use the standard library.")
     elif path.suffix in JS_EXTENSIONS:
         missing = unresolved_js_imports(path, root, source=content)
         if missing:
-            block(f"{banner}FABRICATED PACKAGE REFUSED before writing {path.name}\n"
-                  f"Not in package.json and not installed: {', '.join(missing)}\n"
-                  f"Nothing was written. A package name an agent invented survives "
-                  f"review and may belong to someone else tomorrow — this one does not "
-                  f"reach disk.")
+            refuse(root, "fabricated-package", path,
+                   f"{banner}FABRICATED PACKAGE REFUSED before writing {path.name}\n"
+                   f"Not in package.json and not installed: {', '.join(missing)}\n"
+                   f"Nothing was written. A package name an agent invented survives "
+                   f"review and may belong to someone else tomorrow -- this one does "
+                   f"not reach disk.")
 
 
 def main():
@@ -90,8 +118,9 @@ def main():
     if not any(name.startswith(p) or name == p for p in PROTECTED):
         ok()
 
-    banner = phrase(root, "", "DOCTRINE §III — ")
-    block(
+    banner = phrase(root, "", "DOCTRINE III — ")
+    refuse(
+        root, "run-state-write", rel,
         f"{banner}RUN-STATE IS NOT WRITABLE BY HAND — refused write to .claude/sl/{rel}\n"
         "These files are the record that the enforcement layer produced, not material "
         "for an agent to author. QA-PASS is written by the ship-gate hook after a suite "

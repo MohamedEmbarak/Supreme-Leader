@@ -106,15 +106,38 @@ def read_event():
         return {}
 
 
+# Typography that does not survive the trip to a Windows console. The hook writes
+# UTF-8; a cp1252 terminal decodes it as U+FFFD, so every em dash in every refusal
+# arrived as a black diamond — including in the line that says what was refused and
+# why. A diagnostic that renders wrong on a common platform is a diagnostic that
+# gets misread, and this one is the most important text the plugin ever prints.
+# Prose can have nice dashes; a refusal cannot afford them.
+_ASCII = {
+    "—": "--",   # em dash
+    "–": "-",    # en dash
+    "…": "...",  # ellipsis
+    "≤": "<=",
+    "≥": ">=",
+    "§": "Sec.",
+    "‘": "'", "’": "'", "“": '"', "”": '"',
+}
+
+
+def asciify(text):
+    for bad, good in _ASCII.items():
+        text = text.replace(bad, good)
+    return text.encode("ascii", "replace").decode("ascii")
+
+
 def block(reason):
-    print(reason, file=sys.stderr)
+    print(asciify(reason), file=sys.stderr)
     sys.exit(2)
 
 
 def ok(context=None, event=None):
     if context and event:
         print(json.dumps({"hookSpecificOutput": {
-            "hookEventName": event, "additionalContext": context}}))
+            "hookEventName": event, "additionalContext": asciify(context)}}))
     sys.exit(0)
 
 

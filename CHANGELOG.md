@@ -9,6 +9,26 @@
 
 # Changelog
 
+## 2.2.4 — a refusal you can read, and a refusal that leaves a record
+
+Both found by a tester red-teaming `state-guard` on Windows.
+
+**Every refusal all day rendered with a black diamond in it.** The hooks wrote UTF-8 em
+dashes; a cp1252 console decoded them as U+FFFD. It was in the line that says what was
+refused and why — the most important text this plugin ever prints, garbled on a platform a
+large share of its users are on. Prose can have nice typography; a diagnostic that has to
+survive an unknown terminal cannot. Hook output is now transliterated to ASCII (`—` becomes
+`--`, not a dropped character), and the lore banner reads `DOCTRINE III` rather than
+depending on a section sign.
+
+**A refused forgery left no trace.** The write was prevented and the fact that anyone tried
+was recorded nowhere. An attempt to hand-write `gate-QA-PASS.json` is the single most
+interesting event this plugin can observe, and it was the one thing that vanished. Refusals
+now append to the evidence ledger with their kind and target, so a blocked fabrication
+outlives the turn that attempted it.
+
+**145 tests, 25 mutants.**
+
 ## 2.2.3 — refused before it is written
 
 A tester photographed the answer to a claim this README had been making since 2.0: the
