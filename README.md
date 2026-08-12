@@ -43,6 +43,12 @@ same formats, same thresholds; only the vocabulary changes. The doctrine is regi
 /plugin install supreme-leader@embarak
 ```
 
+**Restart Claude Code after installing or updating.** Hook commands resolve
+`${CLAUDE_PLUGIN_ROOT}` when the session starts, so a `/plugin marketplace update` in a
+running session leaves the *previous* version's hooks executing while the manifest reports
+the new one. Two rounds of testing were spent on that during the 2.2.0 release, chasing a
+defect that had already been fixed in the copy on disk.
+
 Then, in any project:
 
 ```

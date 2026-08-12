@@ -106,6 +106,11 @@ is ungated. A guard whose limits are undocumented is one people over-trust.
   change a figure that was correct. No summary plus a non-zero exit now reports ERROR, and
   the hook says it could not check.
 
+**Install docs now say to restart.** Hook commands resolve `${CLAUDE_PLUGIN_ROOT}` at session
+start, so updating a plugin mid-session leaves the previous version's hooks running while the
+manifest reports the new one. Both defects above were reported twice from a session executing
+2.1.0 hooks against a 2.2.0 install, which is a confusing way to lose an afternoon.
+
 **134 tests, 21 mutants.** Each mutant reintroduces a shipped defect and fails the build if
 the guard does not catch it.
 
