@@ -5,9 +5,16 @@ argument-hint: on | off
 
 The operator said: **lore $ARGUMENTS**
 
-Write `.claude/sl/register` containing `LORE` (on) or `PLAIN` (off), and update the
-`**REGISTER:**` line in `ORGANIZATION.md` if it exists. Confirm in one line, in the register
-just chosen, and hold it for the rest of the session.
+**With no argument, report rather than change.** Say which register is active, which file
+decided it, and whether the two sources agree — `.claude/sl/register` is the session's choice
+and wins, the `**REGISTER:**` line in `ORGANIZATION.md` is the project's committed default.
+The session file is gitignored, so it never appears in `git status` and outlives the session
+that wrote it; a machine that once turned lore on keeps it after the repository has been reset
+to plain. That divergence has confused people, so state it plainly when it exists.
+
+Otherwise: write `.claude/sl/register` containing `LORE` (on) or `PLAIN` (off), **and** update
+the `**REGISTER:**` line in `ORGANIZATION.md` if it exists — both, so the two cannot drift.
+Confirm in one line, in the register just chosen, and hold it for the rest of the session.
 
 **The mechanism never changes.** Formats, line budgets, scoring, gates, escalation duties,
 replacement thresholds — identical in both registers. Only the vocabulary moves:

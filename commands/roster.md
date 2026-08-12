@@ -13,5 +13,16 @@ In this order, nothing else:
 4. **REPLACEMENT LOG** — or "none".
 5. **CYCLE** — current cycle, decree in force, muster, register.
 
+For the register, name the source as well as the value, because there are two and they can
+disagree. `.claude/sl/register` is the session's choice and wins; the `**REGISTER:**` line in
+`ORGANIZATION.md` is the project's committed default and applies to a fresh clone. The
+session file is gitignored, so it is invisible to `git status` and survives indefinitely —
+a machine that once ran `/supreme-leader:lore on` keeps lore even after the repository is
+reset to plain, and nothing says so. If the two disagree, report it in one line:
+
+```
+REGISTER: LORE (session) — ORGANIZATION.md says PLAIN; `/supreme-leader:lore off` reconciles both
+```
+
 If Genesis has not run, say so in one line — the organization does not exist until a decree
 calls it into being.

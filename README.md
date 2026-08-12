@@ -58,7 +58,7 @@ Then, in any project:
 | `/supreme-leader:roster` | Roster, defect ledger, agents on notice, replacement log. |
 | `/supreme-leader:review <agent>` | Verification review of a suspect claim. Acquittal or replacement. |
 | `/supreme-leader:verify` | Audit every claim in the repository against a real run of the suite. |
-| `/supreme-leader:lore on\|off` | The overlay. Same organization, different register. |
+| `/supreme-leader:lore [on\|off]` | The overlay. Same organization, different register. With no argument, reports which register is active and which file decided it. |
 
 ## What is enforced, not merely asked
 
