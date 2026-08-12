@@ -22,9 +22,48 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import block, ok, org_active, phrase, project_dir, read_event  # noqa: E402
+from _common import (  # noqa: E402
+    JS_EXTENSIONS, block, ok, org_active, phrase, project_dir, read_event,
+    unresolved_js_imports, unresolved_py_imports,
+)
 
 PROTECTED = ("gate-", "evidence.log", "verbosity.log", "attempts.json")
+
+
+def check_content(root, path, content):
+    """Refuse a fabricated dependency before the file exists.
+
+    `truth-lint` runs PostToolUse, so it can only object *after* the bytes are on
+    disk. The README said an unresolvable import "cannot be committed to a
+    deliverable", and a user showed the opposite: the blocked file sitting in the
+    Source Control pane, staged and ready. The model was told no; git was not.
+
+    Checking the proposed content here makes the claim true for Write, which is
+    where new files — and therefore invented package names — come from. Edit
+    supplies only a fragment, so it stays with the post-write check; that split is
+    stated in the README rather than glossed.
+    """
+    if "deliverables" not in path.parts:
+        return
+    banner = phrase(root, "", "DOCTRINE §III — ")
+    if path.suffix == ".py":
+        try:
+            missing = unresolved_py_imports(content, root)
+        except SyntaxError:
+            return  # let the post-write check report the syntax error properly
+        if missing:
+            block(f"{banner}FABRICATED IMPORT REFUSED before writing {path.name}\n"
+                  f"These imports do not resolve here: {', '.join(missing)}\n"
+                  f"Nothing was written. Install the dependency and prove it imports, "
+                  f"or use the standard library.")
+    elif path.suffix in JS_EXTENSIONS:
+        missing = unresolved_js_imports(path, root, source=content)
+        if missing:
+            block(f"{banner}FABRICATED PACKAGE REFUSED before writing {path.name}\n"
+                  f"Not in package.json and not installed: {', '.join(missing)}\n"
+                  f"Nothing was written. A package name an agent invented survives "
+                  f"review and may belong to someone else tomorrow — this one does not "
+                  f"reach disk.")
 
 
 def main():
@@ -42,7 +81,10 @@ def main():
     try:
         rel = path.resolve().relative_to((root / ".claude" / "sl").resolve())
     except (ValueError, OSError):
-        ok()  # not under the state directory; none of this hook's business
+        content = (event.get("tool_input") or {}).get("content")
+        if isinstance(content, str):
+            check_content(root, path, content)
+        ok()  # not under the state directory; nothing else here is our business
 
     name = rel.name
     if not any(name.startswith(p) or name == p for p in PROTECTED):

@@ -14,16 +14,14 @@ Two checks, both mechanical:
    function-local imports are caught too.
 """
 
-import ast
-import importlib.util
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import (  # noqa: E402
-    CLAIM_FAILED, CLAIM_OK, HISTORICAL, JS_EXTENSIONS, STDLIB, block, claimed_totals, ok,
+    CLAIM_FAILED, CLAIM_OK, HISTORICAL, JS_EXTENSIONS, block, claimed_totals, ok,
     ledger_attests, org_active, phrase, project_dir, read_event, run_suite,
-    unresolved_js_imports,
+    unresolved_js_imports, unresolved_py_imports,
 )
 
 
@@ -58,28 +56,6 @@ def claimed_results(text):
     }
 
 
-def check_imports(path, root):
-    tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
-    mods = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            mods.update(a.name.split(".")[0] for a in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            mods.add(node.module.split(".")[0])
-    missing = []
-    for m in sorted(mods):
-        if m in STDLIB:
-            continue
-        if list(root.rglob(f"{m}.py")) or list(root.rglob(f"{m}/__init__.py")):
-            continue  # local module
-        try:
-            if importlib.util.find_spec(m) is None:
-                missing.append(m)
-        except (ImportError, ValueError, ModuleNotFoundError):
-            missing.append(m)
-    return missing
-
-
 def main():
     root = project_dir()
     if not org_active(root):
@@ -102,7 +78,8 @@ def main():
     # --- check 2: invented imports -------------------------------------------
     if path.suffix == ".py" and "deliverables" in path.parts:
         try:
-            missing = check_imports(path, root)
+            missing = unresolved_py_imports(
+                path.read_text(encoding="utf-8", errors="replace"), root)
         except SyntaxError as exc:
             block(f"{banner(root)}{path.name} does not parse: {exc}\n"
                   f"A deliverable that cannot be parsed cannot be verified. Fix the syntax.")

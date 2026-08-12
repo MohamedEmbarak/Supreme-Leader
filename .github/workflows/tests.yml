@@ -100,9 +100,9 @@ jobs:
              "tests.test_hooks.GateCLI.test_qa_pass_cannot_be_recorded_by_hand"),
 
             ("import check stops walking the tree",
-             "hooks/truth-lint.py",
-             "    for node in ast.walk(tree):",
-             "    for node in tree.body:",
+             "hooks/_common.py",
+             "    for node in ast.walk(ast.parse(source)):",
+             "    for node in ast.parse(source).body:",
              "tests.test_hooks.TruthLint.test_catches_a_function_local_import"),
 
             ("test launcher not resolved (npm is npm.cmd on Windows)",
@@ -113,7 +113,7 @@ jobs:
              "test_launcher_is_resolved_to_a_real_executable"),
 
             ("import check dies on pythons without stdlib_module_names",
-             "hooks/truth-lint.py",
+             "hooks/_common.py",
              "        if m in STDLIB:",
              "        if m in sys.stdlib_module_names:",
              "tests.test_hooks.TruthLint."
@@ -184,6 +184,12 @@ jobs:
              '    if n > MAX_BLOCKS or event.get("stop_hook_active"):',
              "    if False:",
              "tests.test_hooks.ShipGate.test_standing_down_means_going_quiet"),
+
+            ("fabricated dependencies reach disk before being refused",
+             "hooks/state-guard.py",
+             '        if isinstance(content, str):',
+             "        if False:",
+             "tests.test_hooks.StateGuard.test_a_fabricated_package_never_reaches_disk"),
 
             ("run-state is writable by hand",
              "hooks/state-guard.py",

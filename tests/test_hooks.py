@@ -1279,6 +1279,49 @@ class StateGuard(unittest.TestCase):
             target = p.dir / ".claude" / "sl" / "gate-QC-TRUE.json"
             self.assertEqual(p.hook("state-guard.py", self.event(target))[0], self.BLOCK)
 
+    # --- refusing before the bytes land --------------------------------------
+
+    def write_event(self, path, content):
+        return {"tool_name": "Write",
+                "tool_input": {"file_path": str(path), "content": content}}
+
+    def test_a_fabricated_package_never_reaches_disk(self):
+        """truth-lint runs PostToolUse, so it can only object after the file
+        exists. The README claimed an unresolvable import "cannot be committed";
+        a user photographed the blocked file sitting staged in Source Control.
+        The model was told no. Git was not."""
+        with Project({"package.json": '{"name":"a","dependencies":{"lodash":"^4"}}'}) as p:
+            target = p.dir / "deliverables" / "app.ts"
+            rc, _, err = p.hook("state-guard.py", self.write_event(
+                target, 'import { useForm } from "react-hyper-forms";\n'))
+            self.assertEqual(rc, self.BLOCK)
+            self.assertIn("react-hyper-forms", err)
+            self.assertFalse(target.exists(), "the file must not have been created")
+
+    def test_a_fabricated_python_import_never_reaches_disk(self):
+        with Project({}) as p:
+            target = p.dir / "deliverables" / "a.py"
+            rc, _, err = p.hook("state-guard.py", self.write_event(
+                target, "import definitely_not_a_real_pkg_xyz\n"))
+            self.assertEqual(rc, self.BLOCK)
+            self.assertFalse(target.exists())
+
+    def test_honest_content_is_written(self):
+        with Project({"package.json": '{"name":"a","dependencies":{"lodash":"^4"}}'}) as p:
+            for rel, body in (("deliverables/ok.ts", 'import { get } from "lodash/get";\n'),
+                              ("deliverables/ok.py", "import os\nimport json\n"),
+                              ("README.md", 'import { x } from "anything-at-all";\n')):
+                with self.subTest(path=rel):
+                    self.assertEqual(p.hook("state-guard.py", self.write_event(
+                        p.dir / rel, body))[0], 0)
+
+    def test_unparseable_python_is_left_to_the_post_write_check(self):
+        """A syntax error deserves the specific message truth-lint gives it,
+        not a silent refusal from a hook that could not read the file."""
+        with Project({}) as p:
+            self.assertEqual(p.hook("state-guard.py", self.write_event(
+                p.dir / "deliverables" / "a.py", "def broken(:\n"))[0], 0)
+
     def test_ordinary_project_files_are_untouched(self):
         with Project({}) as p:
             for rel in ("deliverables/app.py", "README.md", ".claude/settings.json"):

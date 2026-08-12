@@ -20,7 +20,8 @@
 **Supreme Leader** is an installable Claude Code plugin: one orchestrator, five teams —
 Business, Development, QA, QC, and Delivery — and a set of hooks that make the interesting
 promises mechanical. A stated test result that does not reproduce is *blocked at write time*,
-not caught in review. An import that does not resolve cannot be committed to a deliverable.
+not caught in review. An invented package name is refused *before the file is written*, so it
+never reaches disk to be staged.
 The turn cannot end while ship gates are missing or stale — and the QA gate cannot be claimed
 at all, because a hook writes it, only after a suite it ran itself actually passes.
 
@@ -70,12 +71,13 @@ Then, in any project:
 
 | Hook | Fires on | What it makes impossible |
 |---|---|---|
+| `state-guard` | **before** every Write/Edit | A fabricated dependency reaching disk at all. The proposed content is checked before it is written, so an invented package name never exists to be staged or committed — `truth-lint` runs *after* the write and can only object once the bytes are there. Also refuses hand-written gates and ledger entries in `.claude/sl/`. Edits supply a fragment rather than a whole file, so those stay with the post-write check. |
 | `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook detects the project's suite (Python `unittest`/`pytest`, Node via `npm test`, Go), re-runs it, and diffs. Claims are recognised in each framework's own output format. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included), and packages in `deliverables/*.{js,ts,tsx,…}` that are neither declared in `package.json` nor installed. Path aliases from `tsconfig.json` and commented-out imports are not mistaken for dependencies. |
 | `ship-gate` | before the turn can end | Shipping ungated. Gates bind to a content hash of `deliverables/`; any edit invalidates them. QA-PASS is written by the hook alone, on a real passing run. Muster-aware: SKIRMISH needs QC-TRUE, FULL needs QC-TRUE + BIZ-ACCEPT. Stands down after 3 refusals rather than trap the conversation. |
 | `evidence-ledger` | before and after every Bash call | Transcripts with nothing behind them. Each command is recorded to `.claude/sl/evidence.log` with the tail of what it returned, correlated by tool id. Where `truth-lint` cannot re-run a suite it checks the claimed line against that ledger instead, so a figure that appeared in no result is visibly written rather than measured. Bounded: results are tailed, not archived whole, and a command that fails still leaves its attempt recorded. |
 | `silence-meter` | when a lead returns | Guessing at verbosity — rollups are measured against budget. Advisory by design; it only measures this plugin's own leads. |
 
-All four speak the active register. Refusals say the same thing in plain and lore; only the
+All five speak the active register. Refusals say the same thing in plain and lore; only the
 vocabulary moves.
 
 **Suites it can verify:** Python (`unittest`, or `pytest` when the project configures it and

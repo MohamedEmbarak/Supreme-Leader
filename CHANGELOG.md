@@ -9,6 +9,25 @@
 
 # Changelog
 
+## 2.2.3 — refused before it is written
+
+A tester photographed the answer to a claim this README had been making since 2.0: the
+blocked `app.ts`, sitting in the Source Control pane, staged and ready to commit. `truth-lint`
+is a `PostToolUse` hook — it fires *after* the bytes land. The model was told no; git was not.
+"An import that does not resolve cannot be committed to a deliverable" was false, and it was
+false in the direction this project least tolerates.
+
+`state-guard` now checks the proposed content on `Write` and refuses a fabricated Python
+import or npm package **before the file exists**. Nothing reaches disk, so nothing can be
+staged. `Edit` supplies a fragment rather than a whole file and stays with the post-write
+check; the split is stated in the README rather than glossed.
+
+The mutation job earned its keep on the way: moving the Python import check into a shared
+helper orphaned two mutants, and the build failed with *"the code moved and this guard is
+unverified"* rather than quietly reporting a smaller number of caught defects.
+
+**140 tests, 23 mutants.**
+
 ## 2.2.2 — standing down means going quiet
 
 The stand-down did not stand down. After `MAX_BLOCKS` refusals the ship gate stopped blocking

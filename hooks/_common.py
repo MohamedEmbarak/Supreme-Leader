@@ -9,6 +9,7 @@ Design constraints, in order:
    with a self-written .gitignore so it can never pollute their history.
 """
 
+import ast
 import hashlib
 import importlib.util
 import json
@@ -559,7 +560,34 @@ def _alias_prefixes(root):
     return prefixes
 
 
-def unresolved_js_imports(path, root):
+def unresolved_py_imports(source, root):
+    """Python imports in `source` that resolve to nothing. Raises SyntaxError.
+
+    Takes text rather than a path so the same check can run on content that has
+    not been written yet — a fabrication refused before it reaches disk beats one
+    refused after, because the file is stageable either way.
+    """
+    mods = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            mods.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            mods.add(node.module.split(".")[0])
+    missing = []
+    for m in sorted(mods):
+        if m in STDLIB:
+            continue
+        if list(root.rglob(f"{m}.py")) or list(root.rglob(f"{m}/__init__.py")):
+            continue  # local module
+        try:
+            if importlib.util.find_spec(m) is None:
+                missing.append(m)
+        except (ImportError, ValueError, ModuleNotFoundError):
+            missing.append(m)
+    return missing
+
+
+def unresolved_js_imports(path, root, source=None):
     """Packages a JS/TS file imports that this project has not declared or installed.
 
     A hallucinated npm package is the most consequential fabrication an agent can
@@ -573,7 +601,8 @@ def unresolved_js_imports(path, root):
     dependency is a setup problem and blocking on it would make the hook useless in
     a fresh checkout.
     """
-    source = path.read_text(encoding="utf-8", errors="replace")
+    if source is None:
+        source = path.read_text(encoding="utf-8", errors="replace")
     declared = _declared_js_deps(root, path)
     aliases = _alias_prefixes(root)
     missing = []
