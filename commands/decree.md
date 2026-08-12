@@ -26,21 +26,35 @@ one question, then proceed on stated assumptions.
 
 Write `ORGANIZATION.md` at the project root before dispatching:
 
+Write exactly this skeleton — it is the file, not a description of one. Fill the
+placeholders and add the table rows; do not carry any guidance text into it.
+
 ```
 # ORGANIZATION — LIVE STATE
 **STATUS:** ACTIVE
-**REGISTER:** PLAIN        <- or LORE, if .claude/sl/register says so
-**MUSTER:** SKIRMISH|FULL
+**REGISTER:** PLAIN
+**MUSTER:** SKIRMISH
 **CURRENT DECREE:** <one line>
 **CURRENT CYCLE:** 1
 
 ## Roster
-| Handle | Role | Status | Score |    <- leads only: BIZ-LEAD, DEV-LEAD, QA-LEAD, QC-LEAD, DEL-LEAD
+| Handle | Role | Status | Score |
+|---|---|---|---|
+
 ## Defect ledger
 | Agent | Points | What happened |
+|---|---|---|
+
 ## Replacement log
 | Cycle | Agent | Cause | Successor |
+|---|---|---|---|
 ```
+
+Filling it: `REGISTER` is `LORE` if `.claude/sl/register` says so, otherwise `PLAIN`.
+`MUSTER` is whichever tier you triaged to, and it must be written — an unset muster
+resolves to FULL and the ship gate will demand a Business gate you never fielded. The
+roster is leads only — `BIZ-LEAD`, `DEV-LEAD`, `QA-LEAD`, `QC-LEAD`, `DEL-LEAD`, and
+under SKIRMISH only `DEV-LEAD` and `QC-LEAD`.
 
 Leads may request up to two team members each **only when scope demands it** — the default
 roster is five leads, not sixteen agents. If `.claude/sl/register` contains `LORE`, run
@@ -50,7 +64,13 @@ Genesis in the lore register instead (names, titles, the full ceremony).
 
 The teams are plugin sub-agents: `business-lead`, `software-development-lead`, `qa-lead`,
 `qc-lead`, `delivery-lead`. A decree is standing authorization — dispatch without asking.
-Parallelize where the pipeline allows. Artifacts land in `deliverables/` as real files.
+Artifacts land in `deliverables/` as real files.
+
+**Dispatch and then wait — do not poll.** A sub-agent call returns its rollup when the agent
+finishes; there is nothing to check on in the meantime. Never sleep, never re-read a file to
+see whether an agent is done, never ask an agent for a status update it has not offered.
+Where the pipeline allows parallel work, issue those calls together in one message and let
+them all return; polling a backgrounded agent burns the operator's tokens producing nothing.
 
 ## The rules that are enforced, not requested
 
@@ -59,11 +79,14 @@ Hooks are active in this project the moment ORGANIZATION.md exists. Concretely:
 - A written file stating a test result that does not reproduce is **blocked** — the hook
   re-runs the suite itself. Write figures you watched print, or write `UNVERIFIED`.
 - A Python file in `deliverables/` importing something that does not resolve is **blocked**.
+- A JS/TS file in `deliverables/` importing a package that is neither in `package.json` nor
+  installed is **blocked**. Invented package names are the fabrication that survives review.
 - The turn cannot end while ship gates are missing or stale. QA-PASS is written by the hook
   alone, on a real passing run. Record the others only after actual verification:
   `python3 <plugin>/hooks/gate.py QC-TRUE "<evidence>"` — same for BIZ-ACCEPT on FULL.
-- Every shell command is logged to `.claude/sl/evidence.log`. An "observed output" block
-  with no matching ledger entry is hand-written by definition.
+- Every shell command **and its output** is recorded to `.claude/sl/evidence.log`. A figure
+  the hook cannot re-run is checked against that ledger instead, so an "observed output"
+  block that never appeared in any result is visibly hand-written.
 
 ## Scoring, each cycle
 

@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 HOOKS = Path(__file__).resolve().parent.parent / "hooks"
@@ -166,6 +167,13 @@ class ClaimDetection(unittest.TestCase):
     def test_line_numbers_are_reported(self):
         text = "intro\n\nRan 7 tests in 0.01s\n"
         self.assertEqual(_common.claimed_totals(text)[0][2], 3)
+
+    def test_a_blank_line_does_not_shift_the_reported_line(self):
+        """`^\\s*` matches newlines even under re.M, so the pytest pattern used to
+        start its match on the preceding blank line and report every figure one
+        line too high. The number in a refusal has to point at the actual line."""
+        text = "## Verification\n\n9 passed, 1 skipped in 0.12s\n"
+        self.assertEqual(_common.claimed_totals(text), [("pytest", 10, 3)])
 
     def test_multiple_figures_all_reported(self):
         text = "Ran 26 tests in 0.1s\n\nlater:\n\nRan 10 tests in 0.1s\n"
@@ -313,15 +321,31 @@ class SuiteExecution(unittest.TestCase):
         `unittest` prints `Ran 0 tests` then `OK` when it matches nothing at all.
         Read as success, it let the ship gate certify a run that executed nothing:
         a guarantee attesting to its own emptiness.
+
+        Both branches are forced rather than left to the environment. The original
+        version of this test asserted `not passed` unconditionally, which is only
+        true where pytest is absent — it passed in CI for that reason and failed
+        the moment pytest appeared on the developer's machine. A test whose verdict
+        depends on what happens to be installed is not testing the guarantee.
         """
         with Project({"deliverables/test_x.py": PYTEST_STYLE_SUITE}) as p:
-            total, passed, _, out = _common.run_suite(p.dir)
+            with unittest.mock.patch.object(_common, "_pytest_importable",
+                                            return_value=False):
+                total, passed, _, out = _common.run_suite(p.dir)
+            self.assertEqual(total, 0, "unittest cannot collect bare functions")
             self.assertFalse(passed, "a suite that ran nothing must not pass")
-            # Either unittest collected zero, or pytest was importable and
-            # rescued the run — but a *silent* zero-pass is what must not happen.
-            if total == 0:
-                self.assertIn("COLLECTED ZERO TESTS", out,
-                              "an empty collection must say so, not fail mutely")
+            self.assertIn("COLLECTED ZERO TESTS", out,
+                          "an empty collection must say so, not fail mutely")
+
+    def test_pytest_rescues_a_suite_unittest_cannot_collect(self):
+        """The other half: when pytest *is* available the run is retried under it,
+        so a legitimate pytest-style suite is not reported as empty."""
+        if not _common._pytest_importable():
+            self.skipTest("pytest not importable by this interpreter")
+        with Project({"deliverables/test_x.py": PYTEST_STYLE_SUITE}) as p:
+            total, passed, _, _ = _common.run_suite(p.dir)
+            self.assertEqual((total, passed), (2, True),
+                             "the rescue must report the tests it actually ran")
 
     def test_node_suite_runs(self):
         if not have("npm") or not have("node"):
@@ -722,6 +746,118 @@ class EvidenceLedger(unittest.TestCase):
             p.hook("evidence-ledger.py", self.event("ls"))
             self.assertFalse((p.dir / ".claude" / "sl" / "evidence.log").exists())
 
+    # --- 2.2: the ledger holds results, not just commands --------------------
+
+    def result_event(self, tid, response):
+        return {"hook_event_name": "PostToolUse", "tool_name": "Bash",
+                "tool_use_id": tid, "tool_response": response}
+
+    def records(self, p):
+        text = (p.dir / ".claude" / "sl" / "evidence.log").read_text()
+        return [json.loads(l) for l in text.splitlines() if l.strip()]
+
+    def test_records_the_output_not_only_the_command(self):
+        """Until 2.2 an agent could run the suite, watch it fail, and write
+        'all green' — the ledger held the command and nothing about the result."""
+        with Project({}) as p:
+            p.hook("evidence-ledger.py",
+                   {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+                    "tool_use_id": "t1", "tool_input": {"command": "pytest -q"}})
+            p.hook("evidence-ledger.py",
+                   self.result_event("t1", {"stdout": "3 failed, 6 passed\n"}))
+            recs = self.records(p)
+            self.assertEqual([r["type"] for r in recs], ["cmd", "result"])
+            self.assertIn("3 failed", recs[1]["tail"])
+            self.assertEqual(recs[0]["tool_use_id"], recs[1]["tool_use_id"],
+                             "the two halves must be correlatable")
+
+    def test_tool_response_shape_is_read_defensively(self):
+        """The harness types tool_response as `unknown`, so its shape is not a
+        contract this hook may assume."""
+        shapes = [
+            ("plain string", "Ran 9 tests"),
+            ("stdout dict", {"stdout": "Ran 9 tests", "stderr": ""}),
+            ("stderr only", {"stdout": "", "stderr": "Ran 9 tests"}),
+            ("content list", {"content": [{"type": "text", "text": "Ran 9 tests"}]}),
+            ("bare list", ["Ran 9 tests"]),
+        ]
+        for label, response in shapes:
+            with self.subTest(shape=label):
+                with Project({}) as p:
+                    rc, _, err = p.hook("evidence-ledger.py",
+                                        self.result_event("t", response))
+                    self.assertEqual(rc, 0, err[:200])
+                    self.assertIn("Ran 9 tests", self.records(p)[0]["tail"])
+
+    def test_a_result_is_digested_as_well_as_tailed(self):
+        with Project({}) as p:
+            p.hook("evidence-ledger.py", self.result_event("t", {"stdout": "hello"}))
+            rec = self.records(p)[0]
+            self.assertEqual(rec["bytes"], 5)
+            self.assertTrue(rec["sha256"])
+
+    def test_ledger_attests_finds_observed_output(self):
+        with Project({}) as p:
+            p.hook("evidence-ledger.py",
+                   self.result_event("t", {"stdout": "9 passed, 1 skipped in 0.12s\n"}))
+            self.assertTrue(_common.ledger_attests(p.dir, "9 passed, 1 skipped in 0.12s"))
+            self.assertIsNone(_common.ledger_attests(p.dir, "47 passed"))
+
+    def test_ledger_attests_ignores_commands(self):
+        """Running `echo 'Ran 99 tests'` must not attest to the figure — only
+        what a command *returned* is evidence, not what it was asked to do."""
+        with Project({}) as p:
+            p.hook("evidence-ledger.py",
+                   {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+                    "tool_use_id": "t", "tool_input": {"command": "echo 'Ran 99 tests'"}})
+            self.assertIsNone(_common.ledger_attests(p.dir, "Ran 99 tests"))
+
+    def test_an_empty_result_is_not_recorded(self):
+        with Project({}) as p:
+            p.hook("evidence-ledger.py", self.result_event("t", {"stdout": ""}))
+            log = p.dir / ".claude" / "sl" / "evidence.log"
+            self.assertFalse(log.exists() and log.read_text().strip())
+
+
+class LedgerBackedClaims(unittest.TestCase):
+    """Where the suite cannot be re-run, the ledger is the fallback: a figure
+    present in a recorded result was at least observed once, and one that
+    appears nowhere was written rather than measured. Advisory either way —
+    unverifiable is not the same as proven false."""
+
+    def event(self, path):
+        return {"tool_name": "Write", "tool_input": {"file_path": str(path)}}
+
+    def context(self, p, path):
+        out = p.hook("truth-lint.py", self.event(path))[1]
+        try:
+            return json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        except Exception:
+            return out
+
+    def ledger(self, text):
+        return {".claude/sl/evidence.log": json.dumps(
+            {"type": "result", "ts": "2026-08-12T06:40:00Z", "tail": text}) + "\n"}
+
+    def test_a_figure_in_the_ledger_is_reported_as_observed(self):
+        with Project(self.ledger("9 passed, 1 skipped in 0.12s\n")) as p:
+            f = p.write("NOTES.md", "## Verification\n\n9 passed, 1 skipped in 0.12s\n")
+            self.assertIn("evidence ledger", self.context(p, f))
+
+    def test_a_figure_absent_from_the_ledger_is_named(self):
+        with Project(self.ledger("9 passed, 1 skipped in 0.12s\n")) as p:
+            f = p.write("NOTES.md", "## Verification\n\n47 passed in 0.9s\n")
+            ctx = self.context(p, f)
+            self.assertIn("does not appear", ctx)
+            self.assertIn("47", ctx)
+
+    def test_it_stays_advisory(self):
+        """Blocking on unverifiable would stop honest work in any project this
+        hook cannot execute."""
+        with Project({}) as p:
+            f = p.write("NOTES.md", "Ran 99 tests\n\nOK\n")
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
 
 class SilenceMeter(unittest.TestCase):
     """Advisory by necessity: on SubagentStop, exit 2 makes the sub-agent *continue*,
@@ -735,13 +871,13 @@ class SilenceMeter(unittest.TestCase):
         with Project({}) as p:
             rc, out, _ = p.hook("silence-meter.py", self.event("qa-lead", 500))
             self.assertEqual(rc, 0, "blocking here would make the agent keep talking")
-            self.assertIn("LAW OF SILENCE", out)
+            self.assertIn("REPORT LENGTH", out)
 
     def test_quiet_when_within_budget(self):
         with Project({}) as p:
             rc, out, _ = p.hook("silence-meter.py", self.event("qa-lead", 5))
             self.assertEqual(rc, 0)
-            self.assertNotIn("LAW OF SILENCE", out)
+            self.assertNotIn("REPORT LENGTH", out)
 
     def test_ignores_agents_that_are_not_ours(self):
         with Project({}) as p:
@@ -756,6 +892,212 @@ class SilenceMeter(unittest.TestCase):
                 (p.dir / ".claude" / "sl" / "verbosity.log").read_text().splitlines()[0])
             self.assertEqual(entry["lines"], 100)
             self.assertTrue(entry["over"])
+
+
+# --- register -------------------------------------------------------------------
+
+# Vocabulary that belongs to the lore overlay. None of it may reach a user who
+# has not asked for it. Kept as data so the assertion is one loop, not a habit
+# each new message has to remember.
+LORE_WORDS = ("DOCTRINE", "LAW OF SILENCE", "Supreme Leader", "directorate",
+              "Wipe", "strike", "tribunal", "kneel")
+
+
+class Register(unittest.TestCase):
+    """Plain is the default and lore is an overlay — including in the hooks.
+
+    Until 2.2 nothing in the enforcement layer read the register at all:
+    `org_field` was called once in the whole codebase, for MUSTER. The hooks
+    announced `DOCTRINE §III` and `LAW OF SILENCE` to projects that had asked
+    for plain language. The mechanism was identical in both registers, as
+    documented; the voice was not.
+    """
+
+    def test_default_is_plain(self):
+        with Project({}, org=False) as p:
+            self.assertEqual(_common.register(p.dir), "PLAIN")
+
+    def test_org_file_selects_lore(self):
+        with Project({}, register="LORE") as p:
+            self.assertEqual(_common.register(p.dir), "LORE")
+
+    def test_session_file_overrides_the_org_file(self):
+        """`/supreme-leader:lore` writes a session file; it must win."""
+        with Project({".claude/sl/register": "LORE\n"}, register="PLAIN") as p:
+            self.assertEqual(_common.register(p.dir), "LORE")
+        with Project({".claude/sl/register": "PLAIN\n"}, register="LORE") as p:
+            self.assertEqual(_common.register(p.dir), "PLAIN")
+
+    def test_unreadable_register_falls_back_to_plain(self):
+        with Project({".claude/sl/register": "gibberish\n"}) as p:
+            self.assertEqual(_common.register(p.dir), "PLAIN")
+
+    def test_reading_the_register_creates_nothing(self):
+        """A function that decides what to *call* something must not have
+        side effects; state_dir() would create .claude/sl on the way past."""
+        with Project({}, org=False) as p:
+            _common.register(p.dir)
+            self.assertFalse((p.dir / ".claude").exists())
+
+    def _block_output(self, project):
+        notes = project.write("NOTES.md", "Ran 47 tests\n\nOK\n")
+        return project.hook(
+            "truth-lint.py",
+            {"tool_input": {"file_path": str(notes)}})[2]
+
+    def test_refusals_are_plain_by_default(self):
+        with Project({"deliverables/test_x.py": PASSING_SUITE}, register="PLAIN") as p:
+            err = self._block_output(p)
+            self.assertIn("UNVERIFIED TEST CLAIM BLOCKED", err)
+            for word in LORE_WORDS:
+                self.assertNotIn(word, err, f"lore word {word!r} leaked into plain mode")
+
+    def test_refusals_speak_lore_when_asked(self):
+        with Project({"deliverables/test_x.py": PASSING_SUITE}, register="LORE") as p:
+            self.assertIn("DOCTRINE", self._block_output(p))
+
+    def test_the_refusal_itself_is_identical_in_both_registers(self):
+        """Vocabulary may move. The verdict may not."""
+        for reg in ("PLAIN", "LORE"):
+            with Project({"deliverables/test_x.py": PASSING_SUITE}, register=reg) as p:
+                notes = p.write("NOTES.md", "Ran 47 tests\n\nOK\n")
+                rc, _, err = p.hook("truth-lint.py",
+                                    {"tool_input": {"file_path": str(notes)}})
+                self.assertEqual(rc, 2, f"{reg}: must still block")
+                self.assertIn("claims 47 tests", err, f"{reg}: same finding")
+
+    def test_advisories_are_plain_by_default(self):
+        with Project({}) as p:
+            out = p.hook("silence-meter.py", {
+                "agent_type": "qa-lead",
+                "last_assistant_message": "\n".join(f"l{i}" for i in range(200)),
+            })[1]
+            for word in LORE_WORDS:
+                self.assertNotIn(word, out, f"lore word {word!r} leaked into plain mode")
+
+
+# --- JavaScript / TypeScript imports ---------------------------------------------
+
+class JsSpecifierParsing(unittest.TestCase):
+
+    def test_every_import_form_is_found(self):
+        src = """
+        import fs from "node:fs";
+        import { a } from 'pkg-a';
+        import 'side-effect-pkg';
+        export { b } from "pkg-b";
+        export * from "pkg-c";
+        const c = require("pkg-d");
+        const d = await import("pkg-e");
+        """
+        found = _common.js_specifiers(src)
+        for spec in ("node:fs", "pkg-a", "side-effect-pkg", "pkg-b", "pkg-c",
+                     "pkg-d", "pkg-e"):
+            self.assertIn(spec, found)
+
+    def test_commented_out_imports_are_not_dependencies(self):
+        """A false positive here blocks honest work, and a linter that blocks
+        honest work gets switched off."""
+        src = ('// import { x } from "line-comment-pkg";\n'
+               '/* import { y } from "block-comment-pkg"; */\n'
+               'import { z } from "real-pkg";\n')
+        self.assertEqual(_common.js_specifiers(src), ["real-pkg"])
+
+    def test_package_name_extraction(self):
+        cases = {
+            "lodash": "lodash",
+            "lodash/get": "lodash",
+            "@tanstack/react-query": "@tanstack/react-query",
+            "@scope/pkg/deep/path": "@scope/pkg",
+        }
+        for spec, expected in cases.items():
+            with self.subTest(spec=spec):
+                self.assertEqual(_common.js_package_name(spec), expected)
+
+    def test_non_packages_are_recognised(self):
+        for spec in ("./local", "../up", "/abs", "#private", "~/alias",
+                     "node:fs", "https://esm.sh/x", "data:text/js,1"):
+            with self.subTest(spec=spec):
+                self.assertIsNone(_common.js_package_name(spec))
+
+
+class JsImportGuard(unittest.TestCase):
+    """A hallucinated npm package is the most durable fabrication an agent can
+    commit: unlike a wrong figure it survives review, and the name it invents
+    may be registered by someone else tomorrow."""
+
+    BLOCK = 2
+    PKG = '{"name":"app","dependencies":{"lodash":"^4","@tanstack/react-query":"^5"}}'
+
+    def event(self, path):
+        return {"tool_name": "Write", "tool_input": {"file_path": str(path)}}
+
+    def test_blocks_a_package_that_is_neither_declared_nor_installed(self):
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("deliverables/a.ts", 'import { x } from "react-hyper-forms";\n')
+            rc, _, err = p.hook("truth-lint.py", self.event(f))
+            self.assertEqual(rc, self.BLOCK)
+            self.assertIn("react-hyper-forms", err)
+
+    def test_declared_dependencies_pass_without_node_modules(self):
+        """An uninstalled dependency is a setup problem, not a fabrication —
+        blocking on it would make the hook useless in a fresh checkout."""
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("deliverables/a.ts",
+                        'import { get } from "lodash/get";\n'
+                        'import { useQuery } from "@tanstack/react-query";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
+    def test_installed_but_undeclared_package_passes(self):
+        with Project({"package.json": self.PKG,
+                      "node_modules/react/package.json": '{"name":"react"}'}) as p:
+            f = p.write("deliverables/a.tsx", 'import React from "react";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
+    def test_node_builtins_pass(self):
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("deliverables/a.js",
+                        'import fs from "node:fs";\nconst path = require("path");\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
+    def test_tsconfig_path_aliases_are_not_packages(self):
+        """`@/components/Button` is a path alias in most React projects. Reading
+        it as a package would block every honest file in a Next.js repo."""
+        tsconfig = ('{ // comments and trailing commas are legal here\n'
+                    '  "compilerOptions": { "paths": { "@/*": ["src/*"] }, },\n}\n')
+        with Project({"package.json": self.PKG, "tsconfig.json": tsconfig}) as p:
+            f = p.write("deliverables/a.tsx", 'import B from "@/components/Button";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
+    def test_relative_imports_pass(self):
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("deliverables/a.ts", 'import { x } from "./sibling";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
+    def test_catches_a_require_inside_a_function(self):
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("deliverables/a.js",
+                        'function load() {\n  return require("ghost-pkg-xyz");\n}\n')
+            rc, _, err = p.hook("truth-lint.py", self.event(f))
+            self.assertEqual(rc, self.BLOCK)
+            self.assertIn("ghost-pkg-xyz", err)
+
+    def test_scoped_fabrication_is_reported_whole(self):
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("deliverables/a.ts", 'import x from "@acme/not-real/sub";\n')
+            err = p.hook("truth-lint.py", self.event(f))[2]
+            self.assertIn("@acme/not-real", err)
+            self.assertNotIn("@acme/not-real/sub", err)
+
+    def test_guard_is_scoped_to_deliverables(self):
+        with Project({"package.json": self.PKG}) as p:
+            f = p.write("scratch/a.ts", 'import x from "ghost-pkg-xyz";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
+
+    def test_a_project_with_no_package_json_still_blocks_fabrications(self):
+        with Project({}) as p:
+            f = p.write("deliverables/a.ts", 'import x from "ghost-pkg-xyz";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], self.BLOCK)
 
 
 # --- resilience -----------------------------------------------------------------

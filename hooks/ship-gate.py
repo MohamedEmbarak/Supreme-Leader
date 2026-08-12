@@ -121,6 +121,9 @@ def main():
         + "\n".join(lines)
         + "\nRecording a gate that was not verified is a false PASS — the gravest defect "
         "there is."
+        + "\n\nAct on this refusal only. Do not restate the report you were about to end "
+        "on — the operator has already read it, and repeating it is noise on top of a "
+        "blocked turn."
     )
 
 

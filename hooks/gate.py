@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record a directorate gate against the current state of deliverables/.
+"""Record a team gate against the current state of deliverables/.
 
     python3 .claude/hooks/gate.py QC-TRUE "audited 4 claims; all reproduced by command"
     python3 .claude/hooks/gate.py BIZ-ACCEPT "19/19 acceptance criteria met"

@@ -1,5 +1,59 @@
 # Changelog
 
+## 2.2.0 — the guard speaks plainly, and covers npm
+
+Prompted by an outside review that verified this plugin's claims independently before making
+any. Everything below is either a defect it named or a gap it identified.
+
+**The enforcement layer spoke lore in plain mode.** `truth-lint` announced `DOCTRINE §III`
+and `silence-meter` announced `LAW OF SILENCE` — *"a subordinate's verbosity is the Supreme
+Leader's shame"* — to projects that had asked for plain language. The root cause was worse
+than the symptom: **no hook read the register at all.** `org_field` was called exactly once
+in the codebase, for `MUSTER`. The mechanism was identical in both registers, as documented;
+the voice was not, which is the same defect pointing the other way. Hooks now resolve the
+register — session file first, then `ORGANIZATION.md`, defaulting to plain — and a test
+asserts that no lore vocabulary reaches a plain-mode user.
+
+**Fabricated npm packages are now blocked.** The Python guard has always caught its
+equivalent; a hallucinated package in a `.ts` deliverable went straight through. That is the
+more consequential fabrication of the two: unlike a wrong figure it survives review, and the
+name an agent invents may be registered by someone else tomorrow. Any JS/TS file in
+`deliverables/` importing a package that is neither declared in `package.json` nor present in
+`node_modules` is refused. Static imports, `require`, dynamic `import()`, and function-local
+requires are all caught. `tsconfig` path aliases, Node builtins, subpath imports, scoped
+packages, and commented-out imports are not mistaken for dependencies — a guard that blocks
+honest work gets switched off.
+
+**The evidence ledger now holds evidence.** It recorded commands only, which meant an agent
+could run the suite, watch three tests fail, and write "all green" with the ledger showing
+nothing but `pytest -q`. It now records the tail of each result too, correlated by tool id,
+and where `truth-lint` cannot re-run a suite it checks the claimed line against the ledger
+instead — so a figure that appeared in no command output is named as unobserved rather than
+passing unexamined. Pre- and post-tool records are kept separately, so a failing command
+still leaves its attempt on the record.
+
+**Line numbers in refusals were off by one** whenever a blank line preceded a pytest figure:
+`^\s*` matches newlines even under `re.M`, so the match began on the blank line above.
+
+**The three limits logged in 2.1.0 are addressed** at the prompt layer, where they live: the
+orchestrator is told to dispatch and wait rather than poll a sub-agent that has nothing to
+report, the ship gate's refusal now says not to restate the report it interrupted, and the
+Genesis skeleton is a literal file rather than an annotated one, so its guidance can no
+longer be transcribed into `ORGANIZATION.md`.
+
+**A test that only passed because of its environment.** The zero-collection guard's test
+asserted `not passed` unconditionally — true only where pytest is absent, which is why CI
+never caught it. Both branches are now forced explicitly.
+
+**119 tests, 16 mutants.** Each mutant reintroduces a shipped defect and fails the build if
+the guard does not catch it.
+
+**Unresolved, and now measurable.** Whether five teams plus hooks beats one agent with the
+same hooks and no organization has never been tested. The harness for testing it ships in
+`experiments/baseline/` with no results in it — three arms, ten decrees, counting blocked
+fabrications against tokens. The uncomfortable hypothesis is that the hooks carry the value
+and the org chart carries the cost. That is worth knowing either way.
+
 ## 2.1.0 — the verifier learns to count
 
 Found by running the organization against a real decree, not by reading the code.

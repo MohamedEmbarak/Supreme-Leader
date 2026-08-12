@@ -64,10 +64,13 @@ Then, in any project:
 
 | Hook | Fires on | What it makes impossible |
 |---|---|---|
-| `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook detects the project's suite (Python `unittest`/`pytest`, Node via `npm test`, Go), re-runs it, and diffs. Claims are recognised in each framework's own output format. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included). |
+| `truth-lint` | after every Write/Edit | A file stating a test result that does not reproduce — the hook detects the project's suite (Python `unittest`/`pytest`, Node via `npm test`, Go), re-runs it, and diffs. Claims are recognised in each framework's own output format. Also blocks imports in `deliverables/*.py` that do not resolve, found by parsing the syntax tree (function-local imports included), and packages in `deliverables/*.{js,ts,tsx,…}` that are neither declared in `package.json` nor installed. Path aliases from `tsconfig.json` and commented-out imports are not mistaken for dependencies. |
 | `ship-gate` | before the turn can end | Shipping ungated. Gates bind to a content hash of `deliverables/`; any edit invalidates them. QA-PASS is written by the hook alone, on a real passing run. Muster-aware: SKIRMISH needs QC-TRUE, FULL needs QC-TRUE + BIZ-ACCEPT. Stands down after 3 refusals rather than trap the conversation. |
-| `evidence-ledger` | before every Bash call | Transcripts with nothing behind them. Every command is logged to `.claude/sl/evidence.log`, so an "observed output" block with no matching entry is hand-written by definition. It records **commands, not their output** — it cannot catch a real command whose output was then misquoted. `truth-lint` covers that case for test figures; for other measured numbers, only an independent re-run does. |
+| `evidence-ledger` | before and after every Bash call | Transcripts with nothing behind them. Each command is recorded to `.claude/sl/evidence.log` with the tail of what it returned, correlated by tool id. Where `truth-lint` cannot re-run a suite it checks the claimed line against that ledger instead, so a figure that appeared in no result is visibly written rather than measured. Bounded: results are tailed, not archived whole, and a command that fails still leaves its attempt recorded. |
 | `silence-meter` | when a lead returns | Guessing at verbosity — rollups are measured against budget. Advisory by design; it only measures this plugin's own leads. |
+
+All four speak the active register. Refusals say the same thing in plain and lore; only the
+vocabulary moves.
 
 **Suites it can verify:** Python (`unittest`, or `pytest` when the project configures it and
 it is importable), Node (`npm test` — TAP from `node --test`, jest, and vitest summaries), and
@@ -151,11 +154,18 @@ Claude Code subagents without the plugin.
   (each dispatch starts empty). For team members simulated inside a lead, and in
   single-context chat, it is a quarantine directive — stated plainly in
   [`protocols/the-wipe.md`](protocols/the-wipe.md).
-- **No benchmarks.** One verified end-to-end run exists
-  ([TRY-SL](https://github.com/MohamedEmbarak/TRY-SL), the live deployment, where QC caught a
-  fabricated README example and a real dry-run bug before either shipped). That demonstrates
-  the machinery functions — not that it beats a single well-prompted agent. Nothing has been
-  measured against that baseline.
+- **No benchmarks, and the org chart is unproven.** Three verified end-to-end runs exist
+  ([TRY-SL](https://github.com/MohamedEmbarak/TRY-SL)) — a fabrication caught after it
+  shipped, one refused before it reached disk, and a gate that passed over a suite which
+  collected zero tests. That demonstrates the machinery functions. It does not show that five
+  teams plus hooks beats **one agent with the same hooks and no organization at all**. The
+  uncomfortable version of that hypothesis — the hooks carry the value, the org chart carries
+  the token cost — has not been tested, and the harness for testing it ships in
+  [`experiments/baseline/`](experiments/baseline/) with no results in it yet.
+- **Enforcement covers Python, JavaScript/TypeScript, Go.** Test-figure verification handles
+  `unittest`, `pytest`, Node's TAP, jest, and `go test`. Fabricated-dependency blocking covers
+  Python imports and npm packages. Rust, Java, C#, Ruby and PHP get nothing, and there is no
+  coverage-threshold gate in any language.
 - **The full muster is expensive.** That is why SKIRMISH is the default and why the
   orchestrator is instructed to refuse ceremony for trivial decrees.
 
@@ -175,12 +185,13 @@ Claude Code subagents without the plugin.
 | Path | Purpose |
 |---|---|
 | `.claude-plugin/` | Plugin manifest and marketplace catalog. |
-| `commands/` | `decree`, `report`, `roster`, `review`, `lore`. |
+| `commands/` | `decree`, `report`, `roster`, `review`, `verify`, `lore`. |
 | `agents/` | The five team leads (plain register; lore identities apply on top). |
 | `hooks/` | The enforcement layer: truth-lint, ship-gate, evidence-ledger, silence-meter, plus `gate.py` and a repo-wide `verify-claims.py`. |
 | `DOCTRINE.md`, `SUPREME_LEADER.md` | The lore texts, and the prompt-only path. |
 | `protocols/` | Report formats and rubric, the Wipe, the Ascension Report, the register mapping. |
 | `templates/`, `examples/`, `BOOK_OF_THE_WIPED.md` | Lore-register instruments and a worked example. |
+| `tests/`, `experiments/` | The suite that tests the enforcement layer, and the harness for the unrun baseline experiment. |
 
 ## License
 

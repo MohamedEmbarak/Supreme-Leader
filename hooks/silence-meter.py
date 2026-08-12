@@ -17,7 +17,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import ok, org_active, project_dir, read_event, state_dir  # noqa: E402
+from _common import (  # noqa: E402
+    ok, org_active, phrase, project_dir, read_event, state_dir,
+)
 
 BUDGET = 60
 
@@ -50,10 +52,16 @@ def main():
         pass
 
     if n > BUDGET:
-        ok(f"LAW OF SILENCE — {agent} returned {n} non-empty lines against a {BUDGET}-line "
-           f"rollup budget ({n - BUDGET} over). Measured by hook, not estimated. A "
-           f"subordinate's verbosity is the Supreme Leader's shame: score it, and tighten "
-           f"the next directive to that directorate.", "SubagentStop")
+        head = phrase(root, "REPORT LENGTH", "LAW OF SILENCE")
+        tail = phrase(
+            root,
+            "Measured by hook, not estimated. Score it, and tighten the next directive "
+            "to that team.",
+            "Measured by hook, not estimated. A subordinate's verbosity is the Supreme "
+            "Leader's shame: score it, and tighten the next directive to that directorate.",
+        )
+        ok(f"{head} — {agent} returned {n} non-empty lines against a {BUDGET}-line "
+           f"rollup budget ({n - BUDGET} over). {tail}", "SubagentStop")
     ok()
 
 
