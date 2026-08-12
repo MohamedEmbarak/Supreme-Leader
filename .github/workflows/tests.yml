@@ -118,6 +118,53 @@ jobs:
              "        if m in sys.stdlib_module_names:",
              "tests.test_hooks.TruthLint."
              "test_import_check_survives_pythons_without_stdlib_module_names"),
+
+            # --- 2.2 ---
+            ("hooks speak lore regardless of register",
+             "hooks/_common.py",
+             '    return lore if register(root) == "LORE" else plain',
+             "    return lore",
+             "tests.test_hooks.Register.test_refusals_are_plain_by_default"),
+
+            ("session register does not override the org file",
+             "hooks/_common.py",
+             '    f = root / ".claude" / "sl" / "register"',
+             '    f = root / ".claude" / "sl" / "no-such-file"',
+             "tests.test_hooks.Register.test_session_file_overrides_the_org_file"),
+
+            ("fabricated npm packages sail through",
+             "hooks/truth-lint.py",
+             '    if path.suffix in JS_EXTENSIONS and "deliverables" in path.parts:',
+             '    if False and path.suffix in JS_EXTENSIONS and "deliverables" in path.parts:',
+             "tests.test_hooks.JsImportGuard."
+             "test_blocks_a_package_that_is_neither_declared_nor_installed"),
+
+            ("commented-out imports counted as dependencies",
+             "hooks/_common.py",
+             '    text = _JS_LINE_COMMENT.sub(" ", text)',
+             "    text = text",
+             "tests.test_hooks.JsSpecifierParsing."
+             "test_commented_out_imports_are_not_dependencies"),
+
+            ("tsconfig path aliases read as packages",
+             "hooks/_common.py",
+             "    prefixes = set()",
+             "    return set()\n    prefixes = set()",
+             "tests.test_hooks.JsImportGuard.test_tsconfig_path_aliases_are_not_packages"),
+
+            ("the ledger records commands but not results",
+             "hooks/evidence-ledger.py",
+             '    if phase == "PostToolUse":',
+             "    if False:",
+             "tests.test_hooks.EvidenceLedger."
+             "test_records_the_output_not_only_the_command"),
+
+            ("a blank line shifts the reported line number",
+             "hooks/_common.py",
+             '    r"^[^\\S\\n]*(?=.*\\b\\d+ (?:passed|failed)\\b)"',
+             '    r"^\\s*(?=.*\\b\\d+ (?:passed|failed)\\b)"',
+             "tests.test_hooks.ClaimDetection."
+             "test_a_blank_line_does_not_shift_the_reported_line"),
           ]
 
           survived = []

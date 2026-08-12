@@ -52,6 +52,43 @@ def org_field(root, key, default=""):
     return m.group(1).strip() if m else default
 
 
+def register(root):
+    """PLAIN or LORE — the vocabulary this project is speaking.
+
+    Two sources, because `/supreme-leader:lore` writes a session file while
+    ORGANIZATION.md carries the committed default. The session file wins; a
+    fresh clone falls back to the org file; absent both, PLAIN.
+
+    Read directly rather than through state_dir(), which creates directories —
+    a hook that decides what to *call* something must not have side effects.
+    """
+    f = root / ".claude" / "sl" / "register"
+    try:
+        if f.is_file():
+            v = f.read_text(encoding="utf-8", errors="replace").strip().upper()
+            if "LORE" in v:
+                return "LORE"
+            if "PLAIN" in v:
+                return "PLAIN"
+    except Exception:
+        pass
+    return "LORE" if "LORE" in org_field(root, "REGISTER", "").upper() else "PLAIN"
+
+
+def phrase(root, plain, lore):
+    """Pick the wording for the active register.
+
+    The hooks used to speak lore unconditionally — `DOCTRINE §III`, `LAW OF
+    SILENCE`, "the Supreme Leader's shame" — while the README promised plain by
+    default since 2.0. Nothing read the register at all: org_field was called
+    once in the codebase, for MUSTER. The mechanism was identical in both
+    registers, as documented; the *voice* was not, which is the same defect in
+    the other direction. Caught by an outside review, reproduced under an
+    explicit `REGISTER: PLAIN`, and now tested.
+    """
+    return lore if register(root) == "LORE" else plain
+
+
 def state_dir(root):
     d = root / ".claude" / "sl"
     d.mkdir(parents=True, exist_ok=True)
@@ -96,10 +133,13 @@ CLAIM_PATTERNS = [
 ]
 # pytest-style summaries state components rather than a total, so they are
 # summed rather than read directly.
+# [^\S\n] is "horizontal whitespace": \s* would match newlines even under re.M,
+# so a figure preceded by a blank line had its match start on the blank line and
+# every reported line number was one too low.
 CLAIM_PYTEST = re.compile(
-    r"^\s*(?=.*\b\d+ (?:passed|failed)\b)"
+    r"^[^\S\n]*(?=.*\b\d+ (?:passed|failed)\b)"
     r"(?:\d+ (?:passed|failed|skipped|error[s]?|xfailed|deselected)(?:, )?)+"
-    r"(?: in [\d.]+s)?\s*$", re.M)
+    r"(?: in [\d.]+s)?[^\S\n]*$", re.M)
 CLAIM_PYTEST_PART = re.compile(r"(\d+) (passed|failed|skipped|errors?)")
 
 
@@ -332,6 +372,142 @@ def run_suite(root):
     return result
 
 
+# --- JavaScript / TypeScript imports ---------------------------------------------
+
+# Node's builtin modules. Hardcoded rather than shelled out to `node -p`, because
+# this check must work in a project that has no Node installed at all — a .ts file
+# can be written long before anyone runs it.
+NODE_BUILTINS = frozenset("""
+assert async_hooks buffer child_process cluster console constants crypto dgram
+diagnostics_channel dns domain events fs http http2 https inspector module net os
+path perf_hooks process punycode querystring readline repl stream string_decoder
+sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib
+""".split())
+
+JS_EXTENSIONS = frozenset({".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".mts", ".cts"})
+
+_JS_LINE_COMMENT = re.compile(r"(?<![:'\"])//[^\n]*")
+_JS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+# `from "x"`, `import "x"`, `export ... from "x"`, `require("x")`, `import("x")`.
+_JS_IMPORT = re.compile(
+    r"""(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*|\bexport\s+\*\s+from\s*)"""
+    r"""(['"])([^'"\n]+)\1""")
+
+
+def js_specifiers(source):
+    """Every module specifier a JS/TS file asks for, in source order.
+
+    Comments are stripped first so a commented-out import is not treated as a
+    dependency — blocking on one would be a false positive, and a linter that
+    blocks honest work gets disabled.
+    """
+    text = _JS_BLOCK_COMMENT.sub(" ", source)
+    text = _JS_LINE_COMMENT.sub(" ", text)
+    out = []
+    for m in _JS_IMPORT.finditer(text):
+        spec = m.group(2).strip()
+        if spec and spec not in out:
+            out.append(spec)
+    return out
+
+
+def js_package_name(spec):
+    """The installable package a specifier belongs to, or None if it is local.
+
+    `lodash/get` is the lodash package; `@scope/pkg/sub` is `@scope/pkg`. Relative
+    paths, absolute paths, URLs, and `#private` subpath imports are the project's
+    own business and are never packages.
+    """
+    if not spec or spec[0] in "./#" or spec.startswith("~"):
+        return None
+    if "://" in spec or spec.startswith("data:"):
+        return None
+    if spec.startswith("node:"):
+        return None
+    parts = spec.split("/")
+    if spec.startswith("@"):
+        if len(parts) < 2:
+            return None
+        return "/".join(parts[:2])
+    return parts[0]
+
+
+def _declared_js_deps(root):
+    names = set()
+    pkg = root / "package.json"
+    if pkg.is_file():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            data = {}
+        for field in ("dependencies", "devDependencies", "peerDependencies",
+                      "optionalDependencies"):
+            names.update((data.get(field) or {}).keys())
+    return names
+
+
+def _alias_prefixes(root):
+    """TS/JS path aliases, so `@/components/Button` is not read as a package.
+
+    A project that maps `@/*` to `src/*` is extremely common, and treating those
+    as fabricated npm packages would block every honest file in a Next.js or Vite
+    repo. Parsed leniently: tsconfig.json permits comments and trailing commas,
+    which json.loads does not, so a parse failure falls back to a regex over the
+    paths block rather than giving up and producing false positives.
+    """
+    prefixes = set()
+    for name in ("tsconfig.json", "jsconfig.json"):
+        f = root / name
+        if not f.is_file():
+            continue
+        raw = f.read_text(encoding="utf-8", errors="replace")
+        keys = []
+        try:
+            cleaned = _JS_BLOCK_COMMENT.sub(" ", raw)
+            cleaned = _JS_LINE_COMMENT.sub(" ", cleaned)
+            cleaned = re.sub(r",(\s*[}\]])", r"\1", cleaned)
+            paths = ((json.loads(cleaned).get("compilerOptions") or {}).get("paths") or {})
+            keys = list(paths.keys())
+        except Exception:
+            block = re.search(r'"paths"\s*:\s*\{(.*?)\}\s*[,}]', raw, re.S)
+            if block:
+                keys = re.findall(r'"([^"]+)"\s*:', block.group(1))
+        for k in keys:
+            prefixes.add(k.split("*")[0].rstrip("/") or k)
+    return prefixes
+
+
+def unresolved_js_imports(path, root):
+    """Packages a JS/TS file imports that this project has not declared or installed.
+
+    A hallucinated npm package is the most consequential fabrication an agent can
+    commit to a JS project: unlike a wrong number it survives review, and the name
+    it invents may be registered by someone else later. The Python guard has always
+    caught its equivalent; until 2.2 a fabricated package in a .ts deliverable went
+    straight through.
+
+    Resolution is deliberately declaration-first: a package listed in package.json
+    counts even when node_modules has never been installed, because an uninstalled
+    dependency is a setup problem and blocking on it would make the hook useless in
+    a fresh checkout.
+    """
+    source = path.read_text(encoding="utf-8", errors="replace")
+    declared = _declared_js_deps(root)
+    aliases = _alias_prefixes(root)
+    missing = []
+    for spec in js_specifiers(source):
+        if any(spec == a or spec.startswith(a.rstrip("/") + "/") for a in aliases):
+            continue
+        name = js_package_name(spec)
+        if name is None or name in NODE_BUILTINS or name in declared:
+            continue
+        if (root / "node_modules" / name).is_dir():
+            continue
+        if name not in missing:
+            missing.append(name)
+    return missing
+
+
 # --- gates ----------------------------------------------------------------------
 
 def deliverables_hash(root):
@@ -347,6 +523,33 @@ def deliverables_hash(root):
         h.update(str(f.relative_to(d)).encode())
         h.update(f.read_bytes())
     return None if empty else h.hexdigest()[:16]
+
+
+def ledger_attests(root, needle):
+    """Was this exact text ever printed by a command the organization ran?
+
+    The ledger records the tail of each result, which turns "this output was
+    observed" from an assertion into a lookup. Used where the suite cannot be
+    re-run: a figure present in a recorded tail was at least seen once, and one
+    that appears nowhere was written rather than measured.
+
+    Returns the timestamp of the earliest matching entry, or None.
+    """
+    p = root / ".claude" / "sl" / "evidence.log"
+    if not needle.strip() or not p.is_file():
+        return None
+    try:
+        with p.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if rec.get("type") == "result" and needle in (rec.get("tail") or ""):
+                    return rec.get("ts")
+    except Exception:
+        return None
+    return None
 
 
 def read_gate(root, name):
