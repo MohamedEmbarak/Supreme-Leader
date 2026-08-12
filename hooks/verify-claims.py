@@ -17,10 +17,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import CLAIM_FAILED, CLAIM_OK, claimed_totals, project_dir, run_suite  # noqa: E402
+from _common import (  # noqa: E402
+    CLAIM_FAILED, CLAIM_OK, HISTORICAL, claimed_totals, project_dir, run_suite,
+)
 
 # Declared at file top (whole file) or at end of a line (that line only).
-HISTORICAL = re.compile(r"truth-lint:\s*historical", re.I)
 
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".claude", ".venv"}
 # Files that discuss claim-checking rather than making claims.

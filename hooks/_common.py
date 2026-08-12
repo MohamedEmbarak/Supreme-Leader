@@ -119,9 +119,39 @@ def ok(context=None, event=None):
 
 # --- test suite -----------------------------------------------------------------
 
+# A file or line marked as a record of a past run rather than a live claim.
+# Defined once and shared: truth-lint and verify-claims disagreeing about a
+# documented marker is how the escape hatch came to work in the audit and not at
+# write time. Deliberately explicit and greppable, so exemptions stay visible.
+HISTORICAL = re.compile(r"truth-lint:\s*historical", re.I)
+
 CLAIM_RAN = re.compile(r"\bRan\s+(\d+)\s+tests?\b")
-CLAIM_OK = re.compile(r"^\s*OK\b(?:\s*\(skipped=(\d+)\))?\s*$", re.M)
-CLAIM_FAILED = re.compile(r"^\s*FAILED\b", re.M)
+CLAIM_OK = re.compile(r"^[^\S\n]*OK\b(?:[^\S\n]*\(skipped=(\d+)\))?[^\S\n]*$", re.M)
+CLAIM_FAILED = re.compile(r"^[^\S\n]*FAILED\b", re.M)
+
+# Reading a runner's own output is a different job from spotting a claim in prose,
+# and conflating them was a way to fabricate a passing figure.
+#
+# `unittest -v` echoes each test's docstring, so any test whose documentation
+# mentions a runner-shaped number puts that number into the stream ahead of the
+# real summary. The parser took the first match and believed it: this repository's
+# own suite reported 99 instead of 119, because one test's docstring quotes
+# `Ran 99 tests` while explaining that echoing a figure must not attest to it.
+# A planted docstring was therefore enough to make the hook certify a number no
+# run produced — the precise failure this project exists to prevent.
+#
+# Both fixes are applied together: anchor to column zero, where unittest prints
+# its summary and a docstring line never starts, and take the LAST match, since
+# the summary is the final word by construction.
+SUMMARY_RAN = re.compile(r"^Ran\s+(\d+)\s+tests?\b", re.M)
+SUMMARY_OK = re.compile(r"^OK\b(?:\s*\(skipped=(\d+)\))?", re.M)
+
+
+def _last(rx, text):
+    m = None
+    for m in rx.finditer(text):
+        pass
+    return m
 
 # Written test-count claims, per framework. Deliberately anchored to the shapes
 # real runners emit, so ordinary prose ("all 12 passed review") is not mistaken
@@ -222,10 +252,13 @@ def detect_suite(root):
 
 # Suite-summary parsers. Each returns (total, passed, skipped) or None.
 def _parse_unittest(out):
-    m = CLAIM_RAN.search(out)
+    m = _last(SUMMARY_RAN, out)
     if not m:
         return None
-    okm = CLAIM_OK.search(out)
+    # Only the verdict that follows the summary counts. `-v` prints a lowercase
+    # `ok` per test and a docstring may contain anything at all; the run's own
+    # result is what unittest writes after the `Ran N tests` line.
+    okm = _last(SUMMARY_OK, out[m.end():])
     return (int(m.group(1)), bool(okm), int(okm.group(1)) if okm and okm.group(1) else 0)
 
 
@@ -432,17 +465,42 @@ def js_package_name(spec):
     return parts[0]
 
 
-def _declared_js_deps(root):
+def _deps_of(pkg):
+    if not pkg.is_file():
+        return set()
+    try:
+        data = json.loads(pkg.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return set()
     names = set()
-    pkg = root / "package.json"
-    if pkg.is_file():
-        try:
-            data = json.loads(pkg.read_text(encoding="utf-8", errors="replace"))
-        except Exception:
-            data = {}
-        for field in ("dependencies", "devDependencies", "peerDependencies",
-                      "optionalDependencies"):
-            names.update((data.get(field) or {}).keys())
+    for field in ("dependencies", "devDependencies", "peerDependencies",
+                  "optionalDependencies"):
+        names.update((data.get(field) or {}).keys())
+    return names
+
+
+def _declared_js_deps(root, start=None):
+    """Dependencies declared anywhere from the file's directory up to the root.
+
+    Reading only the root manifest reported every workspace dependency as
+    fabricated: in a monorepo the dependency belongs to `deliverables/web/
+    package.json`, not the root. That is a false positive in exactly the repo
+    shape this check was written for, and a guard that blocks honest work in a
+    React or Next.js project gets switched off within the hour.
+    """
+    names = _deps_of(root / "package.json")
+    if start is None:
+        return names
+    here = start if start.is_dir() else start.parent
+    try:
+        here.relative_to(root)
+    except ValueError:
+        return names
+    while True:
+        names |= _deps_of(here / "package.json")
+        if here == root or here.parent == here:
+            break
+        here = here.parent
     return names
 
 
@@ -492,7 +550,7 @@ def unresolved_js_imports(path, root):
     a fresh checkout.
     """
     source = path.read_text(encoding="utf-8", errors="replace")
-    declared = _declared_js_deps(root)
+    declared = _declared_js_deps(root, path)
     aliases = _alias_prefixes(root)
     missing = []
     for spec in js_specifiers(source):
@@ -501,7 +559,8 @@ def unresolved_js_imports(path, root):
         name = js_package_name(spec)
         if name is None or name in NODE_BUILTINS or name in declared:
             continue
-        if (root / "node_modules" / name).is_dir():
+        if any((d / "node_modules" / name).is_dir()
+               for d in (root, *path.parents)):
             continue
         if name not in missing:
             missing.append(name)

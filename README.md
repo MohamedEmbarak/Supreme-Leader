@@ -87,6 +87,23 @@ no dependency beyond Python 3 stdlib.
 prose, cannot make a model reason better, and cannot un-poison a transcript. What they close
 is the gap between *claimed* and *ran* — which is where agent work actually rots.
 
+<details>
+<summary><b>Known ways past the guards</b> — found by attacking the release, not by using it</summary>
+
+Published because a guard whose limits are undocumented is a guard people over-trust.
+
+| Gap | Why it stands |
+|---|---|
+| **Files written via `Bash` skip `truth-lint`.** The hook is `PostToolUse(Write\|Edit)`; `cat > file <<EOF` never triggers it. | The command is recorded in the ledger, but nothing re-reads it. Closing this needs a content check on every Bash call, which would be slow and easy to evade differently. |
+| **A shell redirect into `.claude/sl/` still lands.** `state-guard` covers Write and Edit. | A PreToolUse(Bash) hook cannot reliably tell which files an arbitrary command will touch. |
+| **Paraphrased figures are invisible.** `26/26 tests passing` is not matched — only verbatim runner output is. | Patterns are anchored to what runners actually print so ordinary prose is never mistaken for a claim. Loosening this trades a false negative for false positives that would block honest writing. |
+| **Declaring a fabricated package in `package.json` defeats the npm guard.** | Resolution is declaration-first so a fresh checkout with no `node_modules` is not blocked. Mitigated downstream: the ship gate runs `npm test`, which fails on a package that does not exist. |
+| **Python dynamic imports are not checked.** `importlib.import_module("x")` and `__import__("x")` pass. | The AST check reads `import` statements. A string argument is not one, and following arbitrary expressions is a different problem. |
+| **Work outside `deliverables/` is ungated.** Gates hash that directory; the import guards only fire inside it. | It is the convention the orchestrator is instructed to follow, not a sandbox. An agent that writes elsewhere is unenforced. |
+| **A test docstring can shape what the parser reads.** Anchoring the summary to column zero and taking the last match closed the case found here; a runner that prints its summary elsewhere could still mislead it. | Parsing text a runner emits is inherently weaker than an API. Every parser is checked against the real tool for this reason. |
+
+</details>
+
 ## The organization
 
 ```

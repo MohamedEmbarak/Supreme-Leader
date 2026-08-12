@@ -194,6 +194,24 @@ class Parsers(unittest.TestCase):
             _common._parse_unittest("Ran 26 tests in 0.0s\n\nOK (skipped=1)\n"),
             (26, True, 1))
 
+    def test_a_docstring_cannot_poison_the_summary(self):
+        """`unittest -v` echoes docstrings, so anything a test documents lands in
+        the stream ahead of the real summary. Taking the first match let a planted
+        line certify a figure no run produced — this repository's own suite
+        reported 99 instead of 119 for exactly that reason."""
+        out = ("test_a (m.T)\n"
+               "Running `echo 'Ran 999 tests'` must not attest to it ... ok\n"
+               "-------------------------------\n"
+               "Ran 3 tests in 0.1s\n\nOK\n")
+        self.assertEqual(_common._parse_unittest(out), (3, True, 0))
+
+    def test_a_lowercase_ok_per_test_is_not_the_verdict(self):
+        out = ("test_a (m.T) ... ok\ntest_b (m.T) ... ok\n"
+               "Ran 2 tests in 0.1s\n\nFAILED (failures=1)\n")
+        total, passed, _ = _common._parse_unittest(out)
+        self.assertEqual(total, 2)
+        self.assertFalse(passed, "the summary verdict is what counts, not per-test ok")
+
     def test_unittest_failure_is_not_a_pass(self):
         total, passed, _ = _common._parse_unittest("Ran 3 tests in 0.0s\n\nFAILED (failures=1)\n")
         self.assertEqual(total, 3)
@@ -683,6 +701,24 @@ class TruthLint(unittest.TestCase):
             self.assertEqual(
                 p.hook("truth-lint.py", self.event(p.dir / "gone.md"))[0], 0)
 
+    def test_a_historical_record_is_not_re_verified(self):
+        """`truth-lint: historical` marks a record of a past run, or docs quoting
+        example output. The repo audit honoured it since 2.1; the write-time hook
+        did not — so an archive of a completed decree could not be written at all,
+        and two components disagreed about a documented feature."""
+        with Project({"deliverables/test_x.py": PASSING_SUITE}) as p:
+            f = p.write("ARCHIVE.md",
+                        "<!-- truth-lint: historical -->\n# Old run\n\nRan 26 tests\n\nOK\n")
+            rc, out, _ = p.hook("truth-lint.py", self.event(f))
+            self.assertEqual(rc, 0, "a marked record must not be blocked")
+            self.assertIn("historical", out)
+
+    def test_an_unmarked_stale_figure_is_still_blocked(self):
+        """The exemption has to be asked for, or it is not an exemption."""
+        with Project({"deliverables/test_x.py": PASSING_SUITE}) as p:
+            f = p.write("ARCHIVE.md", "# Old run\n\nRan 26 tests\n\nOK\n")
+            self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], self.BLOCK)
+
     def test_import_check_survives_pythons_without_stdlib_module_names(self):
         """`sys.stdlib_module_names` is 3.10+. On 3.9 the check raised
         AttributeError and exited 1 — a hook error, not a block — so the
@@ -1069,6 +1105,20 @@ class JsImportGuard(unittest.TestCase):
             f = p.write("deliverables/a.tsx", 'import B from "@/components/Button";\n')
             self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], 0)
 
+    def test_workspace_sub_package_dependencies_are_seen(self):
+        """Reading only the root manifest reported every workspace dependency as
+        fabricated — a false positive in exactly the repo shape this check exists
+        for, and one that would get the hook switched off within the hour."""
+        with Project({
+            "package.json": '{"name":"root","workspaces":["deliverables/*"]}',
+            "deliverables/web/package.json": '{"name":"web","dependencies":{"vue":"^3"}}',
+        }) as p:
+            good = p.write("deliverables/web/main.ts", 'import { ref } from "vue";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(good))[0], 0)
+            bad = p.write("deliverables/web/bad.ts", 'import x from "ghost-pkg-zzz";\n')
+            self.assertEqual(p.hook("truth-lint.py", self.event(bad))[0], self.BLOCK,
+                             "widening the search must not blind the guard")
+
     def test_relative_imports_pass(self):
         with Project({"package.json": self.PKG}) as p:
             f = p.write("deliverables/a.ts", 'import { x } from "./sibling";\n')
@@ -1100,6 +1150,61 @@ class JsImportGuard(unittest.TestCase):
             self.assertEqual(p.hook("truth-lint.py", self.event(f))[0], self.BLOCK)
 
 
+# --- run-state is not agent-writable ----------------------------------------------
+
+class StateGuard(unittest.TestCase):
+    """`gate.py` refuses to record QA-PASS, and the README said the gate could not
+    be claimed by an agent at all. That was true of the CLI and false of the
+    filesystem: writing the JSON directly produced `hook-verified: Ran 412` that no
+    run justified. `.claude/sl/` is gitignored, so the forgery never shows in a diff.
+    """
+
+    BLOCK = 2
+
+    def event(self, path):
+        return {"tool_name": "Write", "tool_input": {"file_path": str(path)}}
+
+    def test_refuses_a_forged_qa_pass(self):
+        with Project({}) as p:
+            target = p.dir / ".claude" / "sl" / "gate-QA-PASS.json"
+            rc, _, err = p.hook("state-guard.py", self.event(target))
+            self.assertEqual(rc, self.BLOCK)
+            self.assertIn("NOT WRITABLE BY HAND", err)
+
+    def test_refuses_a_hand_written_ledger(self):
+        """2.2 made truth-lint consult the ledger, which turned a passive log into
+        something worth forging."""
+        with Project({}) as p:
+            target = p.dir / ".claude" / "sl" / "evidence.log"
+            self.assertEqual(p.hook("state-guard.py", self.event(target))[0], self.BLOCK)
+
+    def test_refuses_the_gates_an_agent_may_otherwise_record(self):
+        """Even QC-TRUE, which gate.py will record, must go through the CLI — the
+        CLI is what binds it to the deliverables hash."""
+        with Project({}) as p:
+            target = p.dir / ".claude" / "sl" / "gate-QC-TRUE.json"
+            self.assertEqual(p.hook("state-guard.py", self.event(target))[0], self.BLOCK)
+
+    def test_ordinary_project_files_are_untouched(self):
+        with Project({}) as p:
+            for rel in ("deliverables/app.py", "README.md", ".claude/settings.json"):
+                with self.subTest(path=rel):
+                    self.assertEqual(
+                        p.hook("state-guard.py", self.event(p.dir / rel))[0], 0)
+
+    def test_noop_without_an_organization(self):
+        with Project({}, org=False) as p:
+            target = p.dir / ".claude" / "sl" / "gate-QA-PASS.json"
+            self.assertEqual(p.hook("state-guard.py", self.event(target))[0], 0)
+
+    def test_the_refusal_is_plain_by_default(self):
+        with Project({}, register="PLAIN") as p:
+            err = p.hook("state-guard.py",
+                         self.event(p.dir / ".claude" / "sl" / "gate-QA-PASS.json"))[2]
+            for word in LORE_WORDS:
+                self.assertNotIn(word, err)
+
+
 # --- resilience -----------------------------------------------------------------
 
 class Resilience(unittest.TestCase):
@@ -1110,6 +1215,7 @@ class Resilience(unittest.TestCase):
         ("ship-gate.py", "Stop"),
         ("evidence-ledger.py", "PreToolUse"),
         ("silence-meter.py", "SubagentStop"),
+        ("state-guard.py", "PreToolUse"),
     ]
 
     def test_malformed_input_never_crashes_a_hook(self):

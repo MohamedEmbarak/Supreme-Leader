@@ -1,3 +1,12 @@
+<!-- truth-lint: historical -->
+<!--
+  A changelog records what was true of a release, not what is true of HEAD. The
+  2.1.0 entry quotes `Ran 0 tests` because that figure IS the defect it describes;
+  updating it to match the current suite would falsify the record rather than
+  correct it. Marked at file level for that reason, and the marker stays greppable
+  so the exemption is visible to the next auditor.
+-->
+
 # Changelog
 
 ## 2.2.0 — the guard speaks plainly, and covers npm
@@ -45,7 +54,45 @@ longer be transcribed into `ORGANIZATION.md`.
 asserted `not passed` unconditionally — true only where pytest is absent, which is why CI
 never caught it. Both branches are now forced explicitly.
 
-**119 tests, 16 mutants.** Each mutant reintroduces a shipped defect and fails the build if
+### Found by attacking the release rather than using it
+
+Before tagging 2.2.0 the enforcement layer was attacked deliberately: forge the gates, poison
+the ledger, smuggle fabrications past each guard, and trip false positives. Five findings,
+all fixed here.
+
+**The parser could be poisoned by a test docstring.** `unittest -v` echoes each test's
+docstring, and the summary was read from the *first* `Ran N tests` in the stream. This
+repository's own suite therefore reported **99 instead of 119** — one test's docstring quotes
+`Ran 99 tests` while explaining that echoing a figure must not attest to it. A planted
+docstring was enough to make the hook certify a number no run produced, which is precisely
+the failure this project exists to prevent. The summary is now anchored to column zero and
+read as the *last* match, and the verdict is taken from after the summary line so a verbose
+per-test `ok` cannot stand in for it.
+
+**QA-PASS and the ledger were forgeable by direct file write.** `gate.py` refuses to record
+QA-PASS and the README said it "cannot be claimed by an agent at all" — true of the CLI,
+false of the filesystem. Writing `.claude/sl/gate-QA-PASS.json` produced
+`hook-verified: Ran 412, skipped 0` that no run justified, and because the directory is
+gitignored the forgery never appears in a diff. 2.2 had made truth-lint *consult* the ledger,
+which turned a passive log into something worth forging. A new `state-guard` hook refuses
+Write and Edit into `.claude/sl/`. The residual — a shell redirect still lands — is stated in
+the README rather than papered over.
+
+**`truth-lint: historical` was honoured by the repo audit and ignored at write time.** The
+documented escape hatch worked everywhere except where it is needed: an archive of a
+completed decree could not be written at all. The pattern now lives in one place so the two
+components cannot drift again.
+
+**Workspace dependencies read as fabricated.** Only the root `package.json` was consulted, so
+in a monorepo a dependency declared in `deliverables/web/package.json` was reported as
+invented — a false positive in exactly the repo shape the npm guard was built for.
+
+**Known ways past the guards are now published** in the README: files written via `Bash` skip
+`truth-lint` entirely, paraphrased figures are invisible, declaring a fabricated package
+defeats the npm check, Python dynamic imports are unchecked, and work outside `deliverables/`
+is ungated. A guard whose limits are undocumented is one people over-trust.
+
+**130 tests, 19 mutants.** Each mutant reintroduces a shipped defect and fails the build if
 the guard does not catch it.
 
 **Unresolved, and now measurable.** Whether five teams plus hooks beats one agent with the

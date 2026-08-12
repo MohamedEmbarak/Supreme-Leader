@@ -159,6 +159,24 @@ jobs:
              "tests.test_hooks.EvidenceLedger."
              "test_records_the_output_not_only_the_command"),
 
+            ("summary read from the first match, poisonable by a docstring",
+             "hooks/_common.py",
+             "    m = _last(SUMMARY_RAN, out)",
+             "    m = CLAIM_RAN.search(out)",
+             "tests.test_hooks.Parsers.test_a_docstring_cannot_poison_the_summary"),
+
+            ("run-state is writable by hand",
+             "hooks/state-guard.py",
+             '    if not any(name.startswith(p) or name == p for p in PROTECTED):',
+             "    if True:",
+             "tests.test_hooks.StateGuard.test_refuses_a_forged_qa_pass"),
+
+            ("historical marker ignored at write time",
+             "hooks/truth-lint.py",
+             "    if HISTORICAL.search(text):",
+             "    if False:",
+             "tests.test_hooks.TruthLint.test_a_historical_record_is_not_re_verified"),
+
             ("a blank line shifts the reported line number",
              "hooks/_common.py",
              '    r"^[^\\S\\n]*(?=.*\\b\\d+ (?:passed|failed)\\b)"',
