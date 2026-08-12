@@ -33,6 +33,27 @@ def required_gates(root):
     return ["QC-TRUE"] if "SKIRMISH" in muster else ["QC-TRUE", "BIZ-ACCEPT"]
 
 
+def stand_down(root, digest, message, event):
+    """Say it once, then go quiet.
+
+    After MAX_BLOCKS the hook stopped blocking, which was the intent — but it kept
+    returning an advisory, and an advisory carries `additionalContext`. Context
+    wakes the model, the model ends its turn, Stop fires, the advisory is emitted
+    again. Refusing three times and then narrating forever is not standing down;
+    it is the same trap with a softer voice. In the first live test this ran nine
+    turns until the harness's own cap stopped it.
+
+    `stop_hook_active` is the harness telling us we are already inside a
+    stop-and-continue cycle. Combined with a single-shot advisory, the loop cannot
+    restart itself from here.
+    """
+    n = attempts(root, digest)
+    if n > MAX_BLOCKS or event.get("stop_hook_active"):
+        ok()  # already said; silence is the only thing that ends this
+    attempts(root, digest, bump=True)
+    ok(message, "Stop")
+
+
 def attempts(root, digest, bump=False):
     p = state_dir(root) / "attempts.json"
     data = {}
@@ -51,7 +72,7 @@ def main():
     root = project_dir()
     if not org_active(root):
         ok()
-    read_event()
+    event = read_event()
 
     digest = deliverables_hash(root)
     if not digest:
@@ -78,8 +99,10 @@ def main():
                    if empty else
                    "The test suite does not pass.")
             if attempts(root, digest) >= MAX_BLOCKS:
-                ok(f"ADVISORY: {why} This gate has already refused {MAX_BLOCKS} times. "
-                   "Standing down — but nothing here is shippable.", "Stop")
+                stand_down(root, digest,
+                           f"ADVISORY: {why} This gate has already refused "
+                           f"{MAX_BLOCKS} times. Standing down — but nothing here is "
+                           "shippable.", event)
             attempts(root, digest, bump=True)
             block("SHIP GATE — QA PASS DENIED\n" + why + "\n"
                   "This hook writes the QA gate itself and will not write it for a suite "
@@ -98,9 +121,10 @@ def main():
         ok()
 
     if attempts(root, digest) >= MAX_BLOCKS:
-        ok("ADVISORY: ship gates unsatisfied (" + "; ".join(missing) +
-           f") after {MAX_BLOCKS} refusals. Standing down; whatever ships now, ships "
-           "ungated.", "Stop")
+        stand_down(root, digest,
+                   "ADVISORY: ship gates unsatisfied (" + "; ".join(missing) +
+                   f") after {MAX_BLOCKS} refusals. Standing down; whatever ships now, "
+                   "ships ungated.", event)
 
     attempts(root, digest, bump=True)
     gate_py = Path(__file__).parent / "gate.py"

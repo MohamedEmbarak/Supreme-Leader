@@ -179,6 +179,12 @@ jobs:
              "tests.test_hooks.SuiteExecution."
              "test_a_runner_that_never_ran_is_ERROR_not_a_failure"),
 
+            ("standing down keeps talking forever",
+             "hooks/ship-gate.py",
+             '    if n > MAX_BLOCKS or event.get("stop_hook_active"):',
+             "    if False:",
+             "tests.test_hooks.ShipGate.test_standing_down_means_going_quiet"),
+
             ("run-state is writable by hand",
              "hooks/state-guard.py",
              '    if not any(name.startswith(p) or name == p for p in PROTECTED):',

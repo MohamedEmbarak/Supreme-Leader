@@ -588,6 +588,9 @@ class ShipGateMuster(unittest.TestCase):
         self.assertEqual(self.required("—"), ["QC-TRUE", "BIZ-ACCEPT"])
 
 
+MAX_STOP_BLOCKS = 3  # mirrors ship-gate.MAX_BLOCKS
+
+
 class ShipGate(unittest.TestCase):
     BLOCK = 2
 
@@ -675,6 +678,29 @@ class ShipGate(unittest.TestCase):
             codes = [p.hook("ship-gate.py")[0] for _ in range(5)]
             self.assertEqual(codes[0], self.BLOCK)
             self.assertEqual(codes[-1], 0, "must downgrade to advisory, not block forever")
+
+    def test_standing_down_means_going_quiet(self):
+        """The advisory carries additionalContext, and context wakes the model,
+        which ends its turn, which fires Stop, which emits the advisory again.
+        Refusing three times and then narrating forever is the same trap with a
+        softer voice — it ran nine turns in the first live test before the
+        harness's own cap stopped it. The advisory must be said once."""
+        with Project({"deliverables/test_x.py": PASSING_SUITE}, muster="FULL") as p:
+            outs = [p.hook("ship-gate.py")[1] for _ in range(8)]
+            advisories = [o for o in outs if "ADVISORY" in o]
+            self.assertEqual(len(advisories), 1,
+                             f"advised {len(advisories)} times; must be exactly once")
+            self.assertEqual(outs[-1], "", "must fall silent, not keep talking")
+
+    def test_never_blocks_while_the_harness_is_already_looping(self):
+        """`stop_hook_active` is the harness saying we are inside a
+        stop-and-continue cycle. Emitting context from there restarts it."""
+        with Project({"deliverables/test_x.py": PASSING_SUITE}, muster="FULL") as p:
+            for _ in range(MAX_STOP_BLOCKS):
+                p.hook("ship-gate.py")
+            rc, out, _ = p.hook("ship-gate.py", {"stop_hook_active": True})
+            self.assertEqual(rc, 0)
+            self.assertEqual(out, "", "silence is the only thing that ends the loop")
 
 
 # --- truth-lint.py --------------------------------------------------------------

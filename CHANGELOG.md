@@ -9,6 +9,19 @@
 
 # Changelog
 
+## 2.2.2 — standing down means going quiet
+
+The stand-down did not stand down. After `MAX_BLOCKS` refusals the ship gate stopped blocking
+— as intended — but kept returning an advisory, and an advisory carries `additionalContext`.
+Context wakes the model, the model ends its turn, `Stop` fires, the advisory is emitted again.
+Refusing three times and then narrating forever is the same trap with a softer voice; in the
+first live test it ran **nine consecutive turns** until the harness's own cap intervened.
+
+The advisory is now said once and then the hook falls silent, and `stop_hook_active` — the
+harness telling us we are already inside a stop-and-continue cycle — suppresses it outright.
+Both are mutation-guarded, and the existing test was part of the problem: it asserted the hook
+stops *blocking*, which it did, and never checked whether it stops *talking*.
+
 ## 2.2.1 — a version number that identifies the code
 
 2.2.0 was never tagged, and the marketplace serves the default branch, so "2.2.0" meant four
