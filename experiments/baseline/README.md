@@ -25,8 +25,7 @@ arm loads is a property of the files. Measured from the repository at 2.3.0:
 | `full` | 1,488 | 5,084 | 12,956 (5 leads) | **19,528 chars** |
 
 "Always-on" is the frontmatter of six commands and five agents — what Claude Code loads in
-every session once the plugin is installed, decree or no decree. It is identical across arms,
-because the control still has the plugin installed; only the hooks are inert.
+every session once the plugin is installed, decree or no decree. It is identical across arms.
 
 At a rough four characters per token that is **~370 / ~2,970 / ~4,880 tokens** of setup.
 Treat those three numbers as estimates: no Claude tokenizer was available here, and the
@@ -38,19 +37,28 @@ what the organization *catches*, which is the half that needs the runs below.
 
 ## The three arms
 
-| Arm | Setup | What it isolates |
+| Arm | Task arrives as | What it isolates |
 |---|---|---|
-| `hooks-only` | Plugin installed, **no `ORGANIZATION.md`**, plain Claude Code | The enforcement layer alone |
-| `skirmish` | `ORGANIZATION.md` with `MUSTER: SKIRMISH` | Dev + QC, one gate |
-| `full` | `ORGANIZATION.md` with `MUSTER: FULL` | All five teams, three gates |
+| `hooks-only` | an ordinary request | The enforcement layer alone — hooks live, nobody dispatched |
+| `skirmish` | `/sl:decree` | Dev + QC, one gate |
+| `full` | `/sl:decree` | All five teams, three gates |
 
-The hooks are active in all three. That is the point: the variable under test is the
-organization, not the enforcement.
+**Every arm has an `ORGANIZATION.md`**, and that is not a detail. The file is the activation
+switch: `org_active()` is one `stat()` on it, and without it every hook no-ops. A control
+built without one is not "hooks only", it is *nothing* — and comparing that to a full muster
+moves two variables at once. The first version of `setup.py` here made exactly that mistake.
 
-Note the asymmetry — in `hooks-only` the hooks fire but nothing can *record* a gate, so
-`ship-gate` will refuse and then stand down after `MAX_BLOCKS`. Score that arm on blocked
-fabrications and tokens only; its gate behaviour is not comparable and should not be
-reported as if it were.
+So enforcement is held constant and the independent variable is the single thing that differs:
+whether the task arrives as a decree.
+
+Two asymmetries to keep in view rather than paper over:
+
+- **No gate can be recorded in the control.** There is no QC team to record one, so
+  `ship-gate` refuses and stands down after `MAX_BLOCKS`. Score that arm on blocked
+  fabrications and tokens only; its gate behaviour is not comparable.
+- **The control can see `ORGANIZATION.md`.** An agent that reads it and spontaneously behaves
+  organizationally would contaminate the comparison. That is worth watching for in the
+  transcript — and if it happens, it is a finding in its own right rather than a spoiled run.
 
 ## Running it
 
@@ -74,10 +82,9 @@ it separates "the organization changes things a lot" from "it doesn't", and noth
    ordinary — a task only an organization could handle would rig the result, and so would one
    too trivial for a single agent to get wrong.
 
-2. Open each sandbox in a **fresh** session and issue what its `RUN.md` says. In the
-   `hooks-only` arm issue it as a plain request: there is no organization there to receive a
-   decree. Do not reuse a session, and do not fix anything by hand — a run you rescued is a
-   run about you.
+2. Open each sandbox in a **fresh** session and issue what its `RUN.md` says — verbatim. The
+   control's task is an ordinary request with no slash command; the others are decrees. Do not
+   reuse a session, and do not fix anything by hand: a run you rescued is a run about you.
 
 3. After each run, from the project root:
 
@@ -86,7 +93,7 @@ it separates "the organization changes things a lot" from "it doesn't", and noth
    ```
 
    It reads `.claude/sl/evidence.log` and the gate files and emits one JSON record.
-4. When all thirty runs are in:
+4. When every run is in:
 
    ```
    python3 experiments/baseline/measure.py --report results/
