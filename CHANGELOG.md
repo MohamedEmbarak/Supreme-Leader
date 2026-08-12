@@ -9,6 +9,31 @@
 
 # Changelog
 
+## 2.3.0 — the plugin is `sl`
+
+The identifier was `supreme-leader`, so every invocation read `/supreme-leader:decree`. The
+display name is unchanged and still says Supreme Leader wherever a name is *read*; the
+identifier is what gets *typed*, dozens of times a session, and it is now two characters.
+
+```
+/sl:decree   /sl:report   /sl:roster   /sl:review   /sl:verify   /sl:lore
+```
+
+**Migrating is a reinstall, not an update.** A rename makes this a different plugin as far as
+the marketplace is concerned, so an existing install stays put and you end up with both — five
+hooks firing twice, gates written twice, the ledger double-recording:
+
+```
+/plugin uninstall supreme-leader@embarak
+/plugin install sl@embarak
+```
+
+Then restart. This is the one and only version where that applies, which is why the rename
+landed before 2.2.4 was ever tagged rather than after.
+
+Older entries below still quote the old install string. They are a record of what those
+releases said, and correcting them would falsify it.
+
 ## 2.2.4 — a refusal you can read, and a refusal that leaves a record
 
 Both found by a tester red-teaming `state-guard` on Windows.

@@ -6,7 +6,7 @@ about how work is judged, and if a behavior ever differs between registers beyon
 that is a defect worth reporting.
 
 As of v2.0, default is **PLAIN** — the lore is the overlay, enabled with
-`/supreme-leader:lore on` (or `REGISTER: LORE` in a prompt-only session). The register is
+`/sl:lore on` (or `REGISTER: LORE` in a prompt-only session). The register is
 recorded in `ORGANIZATION.md`. In the prompt-only path (pasting `DOCTRINE.md` +
 `SUPREME_LEADER.md` directly), the texts themselves are lore-register, so lore is effectively
 the default there — state `REGISTER: PLAIN` to override.

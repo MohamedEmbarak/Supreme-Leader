@@ -1052,7 +1052,7 @@ class Register(unittest.TestCase):
             self.assertEqual(_common.register(p.dir), "LORE")
 
     def test_session_file_overrides_the_org_file(self):
-        """`/supreme-leader:lore` writes a session file; it must win."""
+        """`/sl:lore` writes a session file; it must win."""
         with Project({".claude/sl/register": "LORE\n"}, register="PLAIN") as p:
             self.assertEqual(_common.register(p.dir), "LORE")
         with Project({".claude/sl/register": "PLAIN\n"}, register="LORE") as p:

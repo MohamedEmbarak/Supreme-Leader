@@ -56,7 +56,7 @@ def org_field(root, key, default=""):
 def register(root):
     """PLAIN or LORE — the vocabulary this project is speaking.
 
-    Two sources, because `/supreme-leader:lore` writes a session file while
+    Two sources, because `/sl:lore` writes a session file while
     ORGANIZATION.md carries the committed default. The session file wins; a
     fresh clone falls back to the org file; absent both, PLAIN.
 

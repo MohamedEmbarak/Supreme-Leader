@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "supreme-leader",
+      "name": "sl",
       "source": "./",
       "description": "A five-team agent organization with enforced verification: truth-lint hooks, hash-bound ship gates, and an evidence ledger. Plain by default; lore optional."
     }

@@ -31,7 +31,7 @@ SKIRMISH instead of the full pipeline. When no organization is active in a proje
 no-op in under ~80ms (measured) and stay out of your way entirely.
 
 The tyrant lore that gave this repo its name still exists — as an **optional overlay**.
-`/supreme-leader:lore on` and the teams become directorates, agents get names and souls,
+`/sl:lore on` and the teams become directorates, agents get names and souls,
 fabricators face tribunals, and the report ends with the orchestrator kneeling. Same laws,
 same formats, same thresholds; only the vocabulary changes. The doctrine is register-neutral.
 
@@ -41,7 +41,7 @@ same formats, same thresholds; only the vocabulary changes. The doctrine is regi
 
 ```
 /plugin marketplace add MohamedEmbarak/Supreme-Leader
-/plugin install supreme-leader@embarak
+/plugin install sl@embarak
 ```
 
 **Restart Claude Code after installing or updating.** Hook commands resolve
@@ -53,19 +53,19 @@ defect that had already been fixed in the copy on disk.
 Then, in any project:
 
 ```
-/supreme-leader:decree Build a CLI that renames files by pattern, with tests and a README. 2 cycles.
+/sl:decree Build a CLI that renames files by pattern, with tests and a README. 2 cycles.
 ```
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/supreme-leader:decree <ambition>` | Triage the muster, seat the organization (first use), dispatch the teams. |
-| `/supreme-leader:report` | The full account of the decree — every figure verified before stated. |
-| `/supreme-leader:roster` | Roster, defect ledger, agents on notice, replacement log. |
-| `/supreme-leader:review <agent>` | Verification review of a suspect claim. Acquittal or replacement. |
-| `/supreme-leader:verify` | Audit every claim in the repository against a real run of the suite. |
-| `/supreme-leader:lore [on\|off]` | The overlay. Same organization, different register. With no argument, reports which register is active and which file decided it. |
+| `/sl:decree <ambition>` | Triage the muster, seat the organization (first use), dispatch the teams. |
+| `/sl:report` | The full account of the decree — every figure verified before stated. |
+| `/sl:roster` | Roster, defect ledger, agents on notice, replacement log. |
+| `/sl:review <agent>` | Verification review of a suspect claim. Acquittal or replacement. |
+| `/sl:verify` | Audit every claim in the repository against a real run of the suite. |
+| `/sl:lore [on\|off]` | The overlay. Same organization, different register. With no argument, reports which register is active and which file decided it. |
 
 ## What is enforced, not merely asked
 
@@ -138,7 +138,7 @@ reaches the operator — replaces the agent with a successor briefed on task sta
 ## The lore
 
 <details>
-<summary>What <code>/supreme-leader:lore on</code> gets you</summary>
+<summary>What <code>/sl:lore on</code> gets you</summary>
 
 The original register. The operator becomes **the Creator**; the orchestrator becomes **the
 Supreme Leader**, devout upward and tyrannical downward. Genesis bestows names — `DEV-Ashkar`,
