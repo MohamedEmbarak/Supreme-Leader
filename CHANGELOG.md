@@ -9,6 +9,16 @@
 
 # Changelog
 
+## 2.2.1 — a version number that identifies the code
+
+2.2.0 was never tagged, and the marketplace serves the default branch, so "2.2.0" meant four
+different code states over one afternoon of live testing. A tester on the first of them saw a
+defect that had been fixed in the third, and nothing in the manifest could tell the two apart
+— which is the same complaint this project makes about everything else: a number that does
+not correspond to what actually ran.
+
+The version now moves whenever hook behaviour does, released or not.
+
 ## 2.2.0 — the guard speaks plainly, and covers npm
 
 Prompted by an outside review that verified this plugin's claims independently before making
