@@ -200,9 +200,20 @@ def _python_test_modules(root):
         if not base.is_dir():
             continue
         for f in sorted(base.rglob("test_*.py")):
-            if {"__pycache__", ".venv", "node_modules"} & set(f.parts):
+            parts = f.relative_to(root).with_suffix("").parts
+            # Anything under a dot-directory is not the project's test suite, and
+            # its dotted name is not even importable: the harness leaves a full
+            # second checkout in .claude/worktrees/, which produced the module
+            # name `.claude.worktrees.<id>.runs.…`. A leading dot makes __import__
+            # read it as a relative import with no package, so unittest raised
+            # `ValueError: Empty module name` and the ENTIRE suite failed to load
+            # — in a repository whose tests all pass. Found on a Windows machine
+            # where that worktree existed; invisible here because it is gitignored.
+            if any(p.startswith(".") for p in parts):
                 continue
-            mods.append(".".join(f.relative_to(root).with_suffix("").parts))
+            if {"__pycache__", "node_modules", "site-packages", "build", "dist"} & set(parts):
+                continue
+            mods.append(".".join(parts))
         if mods:
             break
     return mods
@@ -383,7 +394,20 @@ def run_suite(root):
         out = (p.stdout or "") + (p.stderr or "")
         parsed = PARSERS[kind](out)
         if parsed is None:
-            return (None, p.returncode == 0, 0, out)
+            # No summary at all. A suite that merely fails still prints one
+            # ("Ran N tests" then "FAILED"), so the absence of a summary together
+            # with a non-zero exit means the runner never got as far as running
+            # anything — an import error, a missing interpreter, a bad invocation.
+            #
+            # This used to return passed=False, and truth-lint duly announced
+            # "claims the suite passes — actual: the suite does NOT pass" about a
+            # repository whose tests all pass. That is a false accusation made by
+            # the hook that exists to prevent them, and it is worse than staying
+            # silent: it tells an agent to change a correct figure. Reporting
+            # ERROR makes the hook say it could not check, which is the truth.
+            if p.returncode != 0:
+                return ("ERROR", False, 0, out)
+            return (None, True, 0, out)
         total, passed, skipped = parsed
         return (total, passed, skipped, out)
 

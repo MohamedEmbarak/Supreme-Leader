@@ -165,6 +165,20 @@ jobs:
              "    m = CLAIM_RAN.search(out)",
              "tests.test_hooks.Parsers.test_a_docstring_cannot_poison_the_summary"),
 
+            ("discovery walks into .claude/worktrees and breaks the whole suite",
+             "hooks/_common.py",
+             '            if any(p.startswith(".") for p in parts):',
+             "            if False:",
+             "tests.test_hooks.SuiteDetection."
+             "test_dot_directories_are_not_the_projects_test_suite"),
+
+            ("a runner that never ran is reported as a failing suite",
+             "hooks/_common.py",
+             "            if p.returncode != 0:\n                return (\"ERROR\", False, 0, out)",
+             "            if False:\n                return (\"ERROR\", False, 0, out)",
+             "tests.test_hooks.SuiteExecution."
+             "test_a_runner_that_never_ran_is_ERROR_not_a_failure"),
+
             ("run-state is writable by hand",
              "hooks/state-guard.py",
              '    if not any(name.startswith(p) or name == p for p in PROTECTED):',

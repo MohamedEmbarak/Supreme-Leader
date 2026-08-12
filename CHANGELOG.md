@@ -92,7 +92,21 @@ invented — a false positive in exactly the repo shape the npm guard was built 
 defeats the npm check, Python dynamic imports are unchecked, and work outside `deliverables/`
 is ungated. A guard whose limits are undocumented is one people over-trust.
 
-**130 tests, 19 mutants.** Each mutant reintroduces a shipped defect and fails the build if
+**Found by the first live test of the release, on Windows:**
+
+- **Test discovery walked into `.claude/worktrees/`** — the full second checkout the harness
+  leaves behind. That produced the module name `.claude.worktrees.<id>.runs.…`, whose leading
+  dot makes `__import__` read it as a relative import with no package, so unittest raised
+  `ValueError: Empty module name` and **the entire suite failed to load** in a repository
+  where every test passes. Gitignored, so invisible to anyone not on that machine.
+- **A runner that never ran was reported as a failing suite.** With no summary to parse, the
+  result was `passed=False`, and truth-lint announced *"claims the suite passes — actual: the
+  suite does NOT pass"* about a repository whose tests all pass. That is a false accusation
+  made by the hook that exists to prevent them, and worse than silence: it tells an agent to
+  change a figure that was correct. No summary plus a non-zero exit now reports ERROR, and
+  the hook says it could not check.
+
+**134 tests, 21 mutants.** Each mutant reintroduces a shipped defect and fails the build if
 the guard does not catch it.
 
 **Unresolved, and now measurable.** Whether five teams plus hooks beats one agent with the

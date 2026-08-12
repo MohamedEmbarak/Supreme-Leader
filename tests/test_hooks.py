@@ -313,6 +313,33 @@ class SuiteDetection(unittest.TestCase):
         argv = _common.resolve_argv(["definitely-not-a-real-tool-xyz", "-v"])
         self.assertEqual(argv, ["definitely-not-a-real-tool-xyz", "-v"])
 
+    def test_dot_directories_are_not_the_projects_test_suite(self):
+        """The harness leaves a full second checkout in `.claude/worktrees/`.
+        Discovery walked into it and produced `.claude.worktrees.<id>.runs.…`,
+        whose leading dot makes __import__ read it as a relative import with no
+        package — `ValueError: Empty module name`, and the ENTIRE suite failed to
+        load in a repository whose tests all pass. Gitignored, so invisible to
+        anyone not on the machine where it existed.
+        """
+        with Project({
+            "runs/a/test_a.py": PASSING_SUITE,
+            ".claude/worktrees/abc/runs/a/test_a.py": PASSING_SUITE,
+            ".venv/lib/test_vendored.py": PASSING_SUITE,
+        }) as p:
+            mods = _common._python_test_modules(p.dir)
+            self.assertEqual(mods, ["runs.a.test_a"])
+            for m in mods:
+                self.assertFalse(m.startswith("."), f"unimportable module name: {m}")
+
+    def test_a_suite_hidden_behind_a_worktree_still_runs(self):
+        with Project({
+            "runs/a/test_a.py": PASSING_SUITE,
+            ".claude/worktrees/abc/runs/a/test_a.py": PASSING_SUITE,
+        }) as p:
+            total, passed, _, _ = _common.run_suite(p.dir)
+            self.assertEqual((total, passed), (2, True),
+                             "the copy must not be counted, and must not break the run")
+
     def test_pycache_is_not_a_test_module(self):
         with Project({"deliverables/test_x.py": PASSING_SUITE,
                       "deliverables/__pycache__/test_stale.py": "junk"}) as p:
@@ -364,6 +391,47 @@ class SuiteExecution(unittest.TestCase):
             total, passed, _, _ = _common.run_suite(p.dir)
             self.assertEqual((total, passed), (2, True),
                              "the rescue must report the tests it actually ran")
+
+    def test_a_runner_that_never_ran_is_ERROR_not_a_failure(self):
+        """A suite that fails still prints `Ran N tests` and `FAILED`. No summary
+        plus a non-zero exit means the runner never got that far.
+
+        This returned passed=False, so truth-lint announced "claims the suite
+        passes — actual: the suite does NOT pass" about a repository whose tests
+        all pass. A false accusation from the hook that exists to prevent them,
+        and worse than silence: it tells an agent to change a correct figure.
+        """
+        with Project({"deliverables/test_x.py": PASSING_SUITE}) as p:
+            bogus = ("unittest", [sys.executable, "-m", "unittest", ".bad.name"])
+            with unittest.mock.patch.object(_common, "detect_suite",
+                                            return_value=bogus):
+                total, passed, _, _ = _common.run_suite(p.dir)
+            self.assertEqual(total, "ERROR")
+            self.assertFalse(passed)
+
+    def test_an_unrunnable_suite_produces_an_advisory_not_a_block(self):
+        with Project({"deliverables/test_x.py": PASSING_SUITE}) as p:
+            notes = p.write("NOTES.md", "Ran 47 tests\n\nOK\n")
+            bogus = ("unittest", [sys.executable, "-m", "unittest", ".bad.name"])
+            # Exercised through the hook, since the false accusation was what a
+            # user actually saw.
+            harness = p.dir / "shim.py"
+            harness.write_text(
+                "import sys, runpy\n"
+                f"sys.path.insert(0, {str(HOOKS)!r})\n"
+                "import _common\n"
+                f"_common.detect_suite = lambda root: ('unittest', [{sys.executable!r},"
+                " '-m', 'unittest', '.bad.name'])\n"
+                f"runpy.run_path({str(HOOKS / 'truth-lint.py')!r}, run_name='__main__')\n")
+            r = subprocess.run(
+                [sys.executable, str(harness)],
+                input=json.dumps({"tool_input": {"file_path": str(notes)}}),
+                capture_output=True, text=True,
+                cwd=str(p.dir), env=dict(os.environ, CLAUDE_PROJECT_DIR=str(p.dir)))
+            self.assertEqual(r.returncode, 0, f"must not block: {r.stderr[:300]}")
+            self.assertNotIn("does NOT pass", r.stdout + r.stderr)
+            self.assertIn("could not be executed", r.stdout)
+            del bogus
 
     def test_node_suite_runs(self):
         if not have("npm") or not have("node"):
