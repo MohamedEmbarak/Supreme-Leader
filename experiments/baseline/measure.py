@@ -90,7 +90,22 @@ def measure(root, arm, decree, tokens, seconds):
     }
 
 
-def report(results_dir):
+def report(results_dir, declared=None, allow_partial=False):
+    """Summarise the matrix — and withhold the comparison unless it is complete.
+
+    This used to print the warning *and* the table, which is a warning in the same
+    sense that a sign is a lock. The README claimed it "refuses to report on a
+    partial matrix"; it did not, and the gap between those two was found by reading
+    the code to check the sentence rather than by trusting it. A means table is the
+    thing that gets screenshotted, so withholding it is the only version of this
+    guard that does anything.
+
+    The intended matrix defaults to the arms that actually have runs, because the
+    experiment is designed to be scoped down: the README recommends two arms of the
+    three, and a fixed check against ARMS would call a finished two-arm run partial
+    forever, which trains the reader to ignore it. Pass --arms to hold the run to a
+    matrix it has not filled yet.
+    """
     records = []
     for f in sorted(Path(results_dir).glob("*.json")):
         try:
@@ -101,32 +116,59 @@ def report(results_dir):
         print("No results yet. Nothing to report.")
         return 1
 
-    print(f"{len(records)} run(s)\n")
+    by_arm = {a: [r for r in records if r.get("arm") == a] for a in ARMS}
+    present = [a for a in ARMS if by_arm[a]]
+    intended = list(declared) if declared else present
+
+    # A matrix is complete when there is something to compare and the arms are
+    # balanced. Unequal n is not a comparison either — three of one arm against one
+    # of another is an anecdote with a mean printed on it.
+    counts = {a: len(by_arm[a]) for a in intended}
+    empty = [a for a in intended if not counts[a]]
+    unbalanced = len(set(counts.values())) > 1
+    complete = len(intended) >= 2 and not empty and not unbalanced
+
+    print(f"{len(records)} run(s) across {len(present)} arm(s)\n")
+
+    if not complete and not allow_partial:
+        for a in intended:
+            print(f"  {a:<12} {counts[a]} run(s)")
+        why = []
+        if len(intended) < 2:
+            why.append("a comparison needs at least two arms")
+        if empty:
+            why.append(f"no runs for: {', '.join(empty)}")
+        if unbalanced and not empty:  # with an empty arm this is implied, not news
+            why.append("the arms have unequal run counts "
+                       + "(" + ", ".join(f"{a}={counts[a]}" for a in intended) + ")")
+        print(f"\nNo comparison printed: {'; '.join(why)}.")
+        print("A means table from a partial matrix is the thing that ends up quoted, "
+              "so it is withheld rather than captioned. Finish the runs, or pass "
+              "--partial to see it anyway and not publish it.")
+        return 1
+
     header = f"{'arm':<12}{'n':>3}{'refusals':>10}{'commands':>10}{'tokens':>10}"
     print(header)
     print("-" * len(header))
-    seen = set()
-    for arm in ARMS:
-        rows = [r for r in records if r.get("arm") == arm]
-        seen.update(id(r) for r in rows)
+    for arm in intended:
+        rows = by_arm[arm]
         if not rows:
-            print(f"{arm:<12}{0:>3}{'—':>10}{'—':>10}{'—':>10}")
+            print(f"{arm:<12}{0:>3}{'-':>10}{'-':>10}{'-':>10}")
             continue
         tok = [r["tokens"] for r in rows if r.get("tokens")]
         print(f"{arm:<12}{len(rows):>3}"
               f"{statistics.mean(r['refusals_total'] for r in rows):>10.1f}"
               f"{statistics.mean(r['commands'] for r in rows):>10.1f}"
-              f"{(statistics.mean(tok) if tok else '—'):>10}")
+              f"{(f'{statistics.mean(tok):.0f}' if tok else '-'):>10}")
+
+    if not complete:
+        print("\nPARTIAL MATRIX -- shown because --partial was passed. Not a result.")
 
     missing = [r for r in records if not r.get("tokens")]
     if missing:
         print(f"\n{len(missing)} run(s) have no token count. The cost side of the "
-              f"question is unanswered until they do — read /cost and re-record with "
+              f"question is unanswered until they do -- read /cost and re-record with "
               f"--tokens.")
-    incomplete = [a for a in ARMS if not any(r.get("arm") == a for r in records)]
-    if incomplete:
-        print(f"\nArms with no runs: {', '.join(incomplete)}. "
-              f"No comparison should be drawn or published from a partial matrix.")
     return 0
 
 
@@ -139,10 +181,16 @@ def main():
     ap.add_argument("--tokens", type=int, help="from /cost — the harness cannot see it")
     ap.add_argument("--seconds", type=float, help="wall clock for the run")
     ap.add_argument("--report", help="summarise a results directory instead")
+    ap.add_argument("--arms", nargs="*", choices=ARMS,
+                    help="with --report: the intended matrix (default: the arms "
+                         "that have runs)")
+    ap.add_argument("--partial", action="store_true",
+                    help="with --report: print the comparison from an incomplete "
+                         "matrix anyway. It is not a result.")
     args = ap.parse_args()
 
     if args.report:
-        return report(args.report)
+        return report(args.report, args.arms, args.partial)
     if not (args.arm and args.decree is not None and args.out):
         ap.error("--arm, --decree and --out are required unless --report is given")
 

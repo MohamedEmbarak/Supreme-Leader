@@ -86,18 +86,34 @@ it separates "the organization changes things a lot" from "it doesn't", and noth
    control's task is an ordinary request with no slash command; the others are decrees. Do not
    reuse a session, and do not fix anything by hand: a run you rescued is a run about you.
 
-3. After each run, from the project root:
+3. After each run, pointing `--project` at **the sandbox that was just run** — not at
+   this checkout:
 
    ```
-   python3 experiments/baseline/measure.py --arm skirmish --decree 3 --out results/
+   python3 experiments/baseline/measure.py --arm full --decree 3 \
+       --project ~/baseline/full-03 --out results/ --tokens <from /cost>
    ```
 
-   It reads `.claude/sl/evidence.log` and the gate files and emits one JSON record.
+   It reads that project's `.claude/sl/evidence.log` and gate files and emits one JSON
+   record. `--project` defaults to `.`, so running it from this checkout without the flag
+   measures *this* repository's ledger and writes a record that looks entirely plausible
+   and describes the wrong directory. Each sandbox's `RUN.md` carries its own path
+   pre-filled; copy from there rather than typing it.
+
 4. When every run is in:
 
    ```
    python3 experiments/baseline/measure.py --report results/
    ```
+
+   It withholds the comparison table until the matrix is complete — at least two arms,
+   all with the same number of runs. Unequal n is not a comparison either: three runs of
+   one arm against one of another is an anecdote with a mean printed on it. `--partial`
+   prints it anyway, labelled, for watching progress; that output is not a result.
+
+   The intended matrix defaults to the arms that have runs, so the recommended two-arm
+   experiment reports as complete rather than nagging forever about the `skirmish` arm it
+   was told to skip. Pass `--arms hooks-only skirmish full` to hold yourself to all three.
 
 ## What is counted
 
