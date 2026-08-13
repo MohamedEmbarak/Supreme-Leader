@@ -10,6 +10,14 @@
       "name": "sl",
       "source": "./",
       "description": "A five-team agent organization with enforced verification: truth-lint hooks, hash-bound ship gates, and an evidence ledger. Plain by default; lore optional."
+    },
+    {
+      "name": "sll",
+      "source": {
+        "source": "github",
+        "repo": "MohamedEmbarak/SLL"
+      },
+      "description": "Supreme Leader Lite — the same enforcement layer with no organization behind it. Three hooks, no agents: a stated test result must reproduce, a fabricated import never reaches disk, and every command's real output is recorded."
     }
   ]
 }
