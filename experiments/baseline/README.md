@@ -16,7 +16,19 @@ they say.
 ## What is already measured: the cost side
 
 Half the question can be answered without running anything, because the static context each
-arm loads is a property of the files. Measured from the repository at 2.3.0:
+arm loads is a property of the files. Reproduce it with:
+
+```
+python3 experiments/baseline/context_cost.py
+```
+
+These figures were first measured by hand, and the method was not written down. Re-measuring
+later gave 1,587 where the table said 1,488, with no way to tell which was wrong without
+reconstructing the definition — neither was, as it turned out: one counted the `---`
+frontmatter delimiters and one did not, at 9 characters across 11 files. A stated figure
+whose method is unrecorded is exactly what the hooks in this repository refuse to accept
+from an agent, so it is not accepted here either. The script is the method now, and it
+states what it counts.
 
 | Arm | Always-on | `decree.md` | Lead definitions | Total |
 |---|---:|---:|---:|---:|
@@ -24,8 +36,11 @@ arm loads is a property of the files. Measured from the repository at 2.3.0:
 | `skirmish` | 1,488 | 5,084 | 5,319 (2 leads) | **11,891 chars** |
 | `full` | 1,488 | 5,084 | 12,956 (5 leads) | **19,528 chars** |
 
-"Always-on" is the frontmatter of six commands and five agents — what Claude Code loads in
-every session once the plugin is installed, decree or no decree. It is identical across arms.
+"Always-on" is the frontmatter of six commands and five agents, not counting the `---`
+delimiter lines — what Claude Code loads in every session once the plugin is installed,
+decree or no decree. It is identical across arms. The two leads under `skirmish` are
+Development and **QC** — the truth-audit team, not QA, which is a different team with a
+different gate.
 
 At a rough four characters per token that is **~370 / ~2,970 / ~4,880 tokens** of setup.
 Treat those three numbers as estimates: no Claude tokenizer was available here, and the

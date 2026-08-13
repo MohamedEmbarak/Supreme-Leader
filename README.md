@@ -56,6 +56,21 @@ Then, in any project:
 /sl:decree Build a CLI that renames files by pattern, with tests and a README. 2 cycles.
 ```
 
+### Or just the enforcement layer
+
+[**Supreme Leader Lite**](https://github.com/MohamedEmbarak/SLL) is the same hooks with no
+organization behind them — three of them, no agents, no commands, no gates. It is live the
+moment it is installed and there is nothing to dispatch.
+
+```
+/plugin install sll@embarak
+```
+
+Same marketplace, so the `marketplace add` above covers both. Take it if you want a stated
+test result to have to reproduce and a fabricated import to never reach disk, without
+5,000 characters of org chart in every session. Which of the two is the better default is
+[measured, not asserted](#honest-limits) — and not yet measured.
+
 ## Commands
 
 | Command | What it does |
@@ -188,6 +203,13 @@ Claude Code subagents without the plugin.
   uncomfortable version of that hypothesis — the hooks carry the value, the org chart carries
   the token cost — has not been tested, and the harness for testing it ships in
   [`experiments/baseline/`](experiments/baseline/) with no results in it yet.
+
+  That rival is no longer hypothetical: it is [Supreme Leader
+  Lite](https://github.com/MohamedEmbarak/SLL), and it is a real plugin you can install
+  instead of this one. The cost half of the comparison *is* measured — 1,488 characters of
+  always-on context against 19,528 for a full muster, roughly 13×, before any work happens.
+  The half that would justify it is not. If the experiment comes back saying the hooks were
+  carrying it, the lite plugin is the honest recommendation and this README will say so.
 - **Enforcement covers Python, JavaScript/TypeScript, Go.** Test-figure verification handles
   `unittest`, `pytest`, Node's TAP, jest, and `go test`. Fabricated-dependency blocking covers
   Python imports and npm packages. Rust, Java, C#, Ruby and PHP get nothing, and there is no
@@ -210,10 +232,10 @@ Claude Code subagents without the plugin.
 
 | Path | Purpose |
 |---|---|
-| `.claude-plugin/` | Plugin manifest and marketplace catalog. |
+| `.claude-plugin/` | Plugin manifest, and the marketplace catalog — which serves both `sl` and [`sll`](https://github.com/MohamedEmbarak/SLL). |
 | `commands/` | `decree`, `report`, `roster`, `review`, `verify`, `lore`. |
 | `agents/` | The five team leads (plain register; lore identities apply on top). |
-| `hooks/` | The enforcement layer: truth-lint, ship-gate, evidence-ledger, silence-meter, plus `gate.py` and a repo-wide `verify-claims.py`. |
+| `hooks/` | The enforcement layer: truth-lint, state-guard, ship-gate, evidence-ledger, silence-meter, plus `gate.py` and a repo-wide `verify-claims.py`. |
 | `DOCTRINE.md`, `SUPREME_LEADER.md` | The lore texts, and the prompt-only path. |
 | `protocols/` | Report formats and rubric, the Wipe, the Ascension Report, the register mapping. |
 | `templates/`, `examples/`, `BOOK_OF_THE_WIPED.md` | Lore-register instruments and a worked example. |
